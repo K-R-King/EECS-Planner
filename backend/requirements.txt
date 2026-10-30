@@ -1,5 +1,5 @@
 fastapi>=0.139
 uvicorn>=0.50
 pydantic>=2.13
-google-genai>=2.10
+anthropic>=2.3
 python-dotenv>=1.0
