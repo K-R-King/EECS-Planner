@@ -55,6 +55,18 @@ COURSES = {
     "EE120":   {"title": "Signals & Systems",                   "units": 4, "prereqs": ["EECS16B", "MATH54"],       "terms": BOTH,       "category": "elective"},
     "CS184":   {"title": "Computer Graphics",                   "units": 4, "prereqs": ["CS61B", "MATH54"],         "terms": ["Spring"], "category": "elective"},
     "CS160":   {"title": "User Interface Design",               "units": 4, "prereqs": ["CS61B"],                   "terms": BOTH,       "category": "elective"},
+
+    # extra electives: not needed by the auto-planner, but students can add them
+    "CS152":    {"title": "Computer Architecture",              "units": 4, "prereqs": ["CS61C"],                   "terms": BOTH, "category": "elective"},
+    "CS172":    {"title": "Computability & Complexity",         "units": 4, "prereqs": ["CS170"],                   "terms": BOTH, "category": "elective"},
+    "CS174":    {"title": "Combinatorics & Discrete Probability", "units": 4, "prereqs": ["CS170"],                 "terms": BOTH, "category": "elective"},
+    "CS176":    {"title": "Algorithms for Computational Biology", "units": 4, "prereqs": ["CS61B", "CS70"],         "terms": BOTH, "category": "elective"},
+    "CS182":    {"title": "Deep Neural Networks",               "units": 4, "prereqs": ["CS189"],                   "terms": BOTH, "category": "elective"},
+    "CS191":    {"title": "Quantum Information Science",        "units": 4, "prereqs": ["CS70", "MATH54"],          "terms": BOTH, "category": "elective"},
+    "DATA100":  {"title": "Principles & Techniques of Data Science", "units": 4, "prereqs": ["CS61A", "MATH54"],    "terms": BOTH, "category": "elective"},
+    "EECS106A": {"title": "Robotic Manipulation & Interaction", "units": 4, "prereqs": ["EECS16B", "MATH54"],       "terms": BOTH, "category": "elective"},
+    "EECS149":  {"title": "Embedded Systems",                   "units": 4, "prereqs": ["CS61C", "EECS16B"],        "terms": BOTH, "category": "elective"},
+    "EE105":    {"title": "Microelectronic Devices & Circuits", "units": 4, "prereqs": ["EECS16B"],                 "terms": BOTH, "category": "elective"},
 }
 
 # AP exams (score 4-5) -> Berkeley requirements they satisfy.

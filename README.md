@@ -29,10 +29,14 @@ Open `http://localhost:3000`. To point at a different backend, set `NEXT_PUBLIC_
 
 ## API
 
-| Method | Path             | Body                                   |
-| ------ | ---------------- | -------------------------------------- |
-| POST   | `/generate-plan` | `{ completed_courses: [], settings }`  |
-| POST   | `/advisor`       | `{ plan, question }`                   |
+| Method | Path             | Body                                         | Does                                           |
+| ------ | ---------------- | -------------------------------------------- | ---------------------------------------------- |
+| GET    | `/courses`       |                                              | Full course catalog                            |
+| POST   | `/generate-plan` | `{ completed_courses: [], settings }`        | Builds a plan                                  |
+| POST   | `/review-plan`   | `{ plan, settings }`                         | Re-checks an edited plan for problems          |
+| POST   | `/advisor`       | `{ plan, question, settings, history }`      | Answers, and edits the plan when asked to      |
+
+`settings` is `{ timeline, maxUnits, ap: [exam keys] }`.
 
 ## Curriculum
 

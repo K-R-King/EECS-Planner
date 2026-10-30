@@ -1,32 +1,58 @@
 "use client";
 
-import type { Category, PlanResult, Semester } from "@/lib/api";
+import { useState } from "react";
+import type { CatalogCourse, PlanResult, Semester } from "@/lib/api";
+import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
   result: PlanResult | null;
+  catalog: CatalogCourse[];
+  onEdit: (plan: Semester[]) => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }
 
 const TOTAL_UNITS = 120;
 
-const CATEGORY_STYLES: Record<Category, { label: string; bar: string; chip: string }> = {
-  core: { label: "Core", bar: "bg-berkeley", chip: "bg-berkeley/10 text-berkeley" },
-  elective: { label: "Upper-div elective", bar: "bg-gold", chip: "bg-gold/20 text-gold-dark" },
-  hss: { label: "Breadth / R&C", bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-700" },
-  ethics: { label: "Ethics", bar: "bg-violet-500", chip: "bg-violet-100 text-violet-700" },
-};
+/** Remove `code` from wherever it is, then (optionally) put it in `toTerm`. */
+function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: string, toTerm: string | null): Semester[] {
+  const found = catalog.find((c) => c.code === code);
+  const course = found && { code: found.code, title: found.title, units: found.units, category: found.category };
 
-export default function Timeline({ result }: Props) {
+  return plan.map((s) => {
+    let courses = s.courses.filter((c) => c.code !== code);
+    if (s.term === toTerm && course) courses = [...courses, course];
+    return { ...s, courses, units: courses.reduce((sum, c) => sum + c.units, 0) };
+  });
+}
+
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: Props) {
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
+
   if (!result) {
     return (
-      <div className="mx-auto mt-12 max-w-5xl rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center text-slate-500">
-        <p className="text-4xl">🗺️</p>
-        <p className="mt-3 font-medium">Your roadmap will appear here</p>
-        <p className="text-sm">Pick your settings above and hit generate.</p>
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+        <div className="hero-grid pointer-events-none absolute inset-0 opacity-40 invert" />
+        <div className="relative">
+          <div className="mx-auto flex h-16 w-16 animate-float items-center justify-center rounded-2xl bg-berkeley text-3xl shadow-lg shadow-berkeley/30">
+            🗺️
+          </div>
+          <p className="mt-5 text-lg font-semibold text-berkeley">Your roadmap will appear here</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Pick your settings above and hit generate. Then drag courses around to make it yours.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const { plan, total_units, ap_credit, warnings } = result;
+  const { plan, total_units, ap_credit, warnings, issues } = result;
+  const planned = new Set([...ap_credit, ...plan.flatMap((s) => s.courses.map((c) => c.code))]);
+
+  function move(code: string, toTerm: string | null) {
+    onEdit(placeCourse(plan, catalog, code, toTerm));
+  }
 
   // Group semesters by year label ("Year 1 Fall" -> "Year 1")
   const grouped: Record<string, Semester[]> = {};
@@ -40,7 +66,7 @@ export default function Timeline({ result }: Props) {
   const progress = Math.min(100, Math.round((total_units / TOTAL_UNITS) * 100));
 
   return (
-    <div className="mx-auto mt-12 max-w-5xl space-y-10">
+    <div className="space-y-10">
 
       {/* Summary */}
       <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -71,22 +97,41 @@ export default function Timeline({ result }: Props) {
           />
         </div>
 
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600">
-          {Object.values(CATEGORY_STYLES).map((style) => (
-            <span key={style.label} className="flex items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-full ${style.bar}`} />
-              {style.label}
-            </span>
-          ))}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+            {Object.values(CATEGORY_STYLES).map((style) => (
+              <span key={style.label} className="flex items-center gap-1.5">
+                <span className={`h-2.5 w-2.5 rounded-full ${style.bar}`} />
+                {style.label}
+              </span>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light disabled:opacity-40"
+          >
+            ↶ Undo
+          </button>
         </div>
+
+        <p className="mt-3 text-xs text-slate-400">
+          Drag courses between semesters, × to remove, or + to add one. Changing your settings rebuilds the plan.
+        </p>
       </section>
 
-      {/* Warnings */}
-      {warnings.length > 0 && (
-        <div className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+      {/* Warnings & problems */}
+      {(warnings.length > 0 || issues.length > 0) && (
+        <div className="space-y-1.5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           {warnings.map((w) => (
             <p key={w}>⚠️ {w}</p>
+          ))}
+          {issues.map((i) => (
+            <p key={`${i.term}-${i.course}-${i.message}`}>
+              🚫 <span className="font-medium">{i.term}:</span> {i.message}
+            </p>
           ))}
         </div>
       )}
@@ -96,8 +141,8 @@ export default function Timeline({ result }: Props) {
 
           {/* Year Header */}
           <div className="mb-4 flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-berkeley">{year}</h2>
-            <div className="h-px flex-1 bg-slate-200" />
+            <h2 className="rounded-full bg-berkeley px-4 py-1 text-sm font-bold tracking-wide text-white">{year}</h2>
+            <div className="h-px flex-1 bg-linear-to-r from-gold/60 to-transparent" />
             <span className="text-sm text-slate-500">
               {semesters.reduce((sum, s) => sum + s.units, 0)} units
             </span>
@@ -107,11 +152,36 @@ export default function Timeline({ result }: Props) {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {semesters.map((semester) => {
               const season = semester.term.split(" ")[2];
+              const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
+              const isTarget = dragOver === semester.term;
+              const pickerOpen = picker?.term === semester.term;
+              const matches = pickerOpen
+                ? catalog
+                    .filter((c) => !planned.has(c.code))
+                    .filter((c) => `${c.code} ${c.title}`.toLowerCase().includes(picker.query.toLowerCase()))
+                    .slice(0, 6)
+                : [];
 
               return (
                 <div
                   key={semester.term}
-                  className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(semester.term);
+                  }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(null);
+                    move(e.dataTransfer.getData(DRAG_TYPE), semester.term);
+                  }}
+                  className={`rounded-2xl bg-white p-5 shadow-sm transition ${
+                    isTarget
+                      ? "scale-[1.01] ring-2 ring-gold shadow-lg"
+                      : termIssues.length
+                        ? "ring-2 ring-red-300"
+                        : "ring-1 ring-slate-200 hover:shadow-md"
+                  }`}
                 >
 
                   {/* Semester Title */}
@@ -120,32 +190,99 @@ export default function Timeline({ result }: Props) {
                       <span>{season === "Fall" ? "🍂" : "🌱"}</span>
                       {season}
                     </h3>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                    }`}>
                       {semester.units} units
                     </span>
                   </div>
 
                   {/* Courses */}
-                  <ul className="space-y-2">
+                  <ul className="min-h-12 space-y-2">
                     {semester.courses.map((course) => {
                       const style = CATEGORY_STYLES[course.category];
+                      const problem = issues.find((i) => i.term === semester.term && i.course === course.code);
                       return (
                         <li
                           key={course.code}
-                          className="flex items-center gap-3 rounded-xl bg-slate-50 py-2 pr-3"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData(DRAG_TYPE, course.code);
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          title={problem?.message ?? "Drag to another semester"}
+                          className={`group flex cursor-grab items-center gap-3 rounded-xl py-2 pr-2 transition active:cursor-grabbing ${
+                            problem ? "bg-red-50 ring-1 ring-red-300" : "bg-slate-50 hover:bg-slate-100"
+                          }`}
                         >
                           <span className={`h-9 w-1 rounded-full ${style.bar}`} />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-slate-800">{course.code}</p>
-                            <p className="truncate text-xs text-slate-500">{course.title}</p>
+                            <p className={`truncate text-xs ${problem ? "text-red-600" : "text-slate-500"}`}>
+                              {problem ? problem.message : course.title}
+                            </p>
                           </div>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.chip}`}>
                             {course.units}u
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => move(course.code, null)}
+                            aria-label={`Remove ${course.code}`}
+                            className="rounded-md px-1.5 text-slate-300 transition hover:bg-red-100 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
+                          >
+                            ×
+                          </button>
                         </li>
                       );
                     })}
                   </ul>
+
+                  {/* Add course */}
+                  {pickerOpen ? (
+                    <div className="mt-3">
+                      <input
+                        autoFocus
+                        value={picker.query}
+                        onChange={(e) => setPicker({ term: semester.term, query: e.target.value })}
+                        onKeyDown={(e) => e.key === "Escape" && setPicker(null)}
+                        placeholder="Search courses, e.g. CS 189"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
+                      />
+                      <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100">
+                        {matches.map((c) => (
+                          <li key={c.code}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                move(c.code, semester.term);
+                                setPicker(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gold/10"
+                            >
+                              <span className={`h-2 w-2 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />
+                              <span className="font-semibold">{c.code}</span>
+                              <span className="truncate text-xs text-slate-500">{c.title}</span>
+                            </button>
+                          </li>
+                        ))}
+                        {matches.length === 0 && (
+                          <li className="px-3 py-2 text-xs text-slate-400">No matching courses left to add</li>
+                        )}
+                      </ul>
+                      <button type="button" onClick={() => setPicker(null)} className="mt-1 text-xs text-slate-400 hover:text-slate-600">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPicker({ term: semester.term, query: "" })}
+                      className="mt-3 w-full rounded-xl border border-dashed border-slate-300 py-2 text-xs font-medium text-slate-500 transition hover:border-gold hover:bg-gold/5 hover:text-berkeley"
+                    >
+                      + Add course
+                    </button>
+                  )}
                 </div>
               );
             })}

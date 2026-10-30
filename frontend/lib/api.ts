@@ -9,10 +9,21 @@ export interface Course {
   category: Category;
 }
 
+export interface CatalogCourse extends Course {
+  prereqs: string[];
+  terms: string[];
+}
+
 export interface Semester {
   term: string;
   courses: Course[];
   units: number;
+}
+
+export interface Issue {
+  term: string;
+  course: string | null;  // null = the whole semester (e.g. over the unit limit)
+  message: string;
 }
 
 export interface PlanResult {
@@ -20,6 +31,7 @@ export interface PlanResult {
   total_units: number;
   ap_credit: string[];
   warnings: string[];
+  issues: Issue[];
 }
 
 export interface PlannerSettings {
@@ -28,8 +40,20 @@ export interface PlannerSettings {
   ap: string[];  // keys from lib/apExams.ts
 }
 
-async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+export interface ChatMessage {
+  role: "student" | "advisor";
+  text: string;
+}
+
+export interface AdvisorResponse {
+  answer: string;
+  changes: string[];
+  skipped: string[];
+  result: PlanResult | null;  // the edited plan, if the advisor changed anything
+}
+
+async function request<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, body === undefined ? undefined : {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -42,15 +66,24 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-export async function generatePlan(settings: PlannerSettings): Promise<PlanResult> {
-  // incoming students have no completed courses
-  return post<PlanResult>("/generate-plan", {
-    completed_courses: [],
-    settings,
-  });
+export function fetchCatalog(): Promise<CatalogCourse[]> {
+  return request<CatalogCourse[]>("/courses");
 }
 
-export async function askAdvisor(plan: Semester[], question: string): Promise<string> {
-  const data = await post<{ answer: string }>("/advisor", { plan, question });
-  return data.answer;
+export function generatePlan(settings: PlannerSettings): Promise<PlanResult> {
+  // incoming students have no completed courses
+  return request<PlanResult>("/generate-plan", { completed_courses: [], settings });
+}
+
+export function reviewPlan(plan: Semester[], settings: PlannerSettings): Promise<PlanResult> {
+  return request<PlanResult>("/review-plan", { plan, settings });
+}
+
+export function askAdvisor(
+  plan: Semester[],
+  question: string,
+  settings: PlannerSettings,
+  history: ChatMessage[],
+): Promise<AdvisorResponse> {
+  return request<AdvisorResponse>("/advisor", { plan, question, settings, history });
 }
