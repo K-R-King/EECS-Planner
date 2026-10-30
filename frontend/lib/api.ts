@@ -25,9 +25,7 @@ export interface PlanResult {
 export interface PlannerSettings {
   timeline: number;
   maxUnits: number;
-  apCS: boolean;
-  apCalcBC: boolean;
-  apPhysicsC: boolean;
+  ap: string[];  // keys from lib/apExams.ts
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {

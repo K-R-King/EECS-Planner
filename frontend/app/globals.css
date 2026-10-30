@@ -6,9 +6,41 @@
 
   /* Berkeley Blue & California Gold */
   --color-berkeley: #003262;
+  --color-berkeley-dark: #001a33;
   --color-berkeley-light: #3b7ea1;
   --color-gold: #fdb515;
   --color-gold-dark: #c4820e;
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-float-slow: float 9s ease-in-out infinite;
+  --animate-aurora: aurora 14s ease-in-out infinite;
+  --animate-shimmer: shimmer 4s linear infinite;
+  --animate-draw: draw 2.5s ease-out forwards;
+  --animate-fade-up: fade-up 0.8s ease-out both;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(var(--tw-rotate, 0)); }
+    50% { transform: translateY(-14px) rotate(var(--tw-rotate, 0)); }
+  }
+  @keyframes aurora {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(40px, -30px) scale(1.1); }
+    66% { transform: translate(-30px, 20px) scale(0.95); }
+  }
+  @keyframes shimmer {
+    to { background-position: 200% center; }
+  }
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -19,4 +51,23 @@ body {
 
 input[type="range"] {
   accent-color: var(--color-gold);
+}
+
+/* faint grid behind the hero */
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .animate-draw {
+    stroke-dashoffset: 0;
+  }
 }

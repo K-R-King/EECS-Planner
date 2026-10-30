@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Hero from "@/components/Hero";
 import PlannerSettings from "@/components/PlannerSettings";
 import Timeline from "@/components/Timeline";
@@ -10,17 +10,21 @@ import { generatePlan, type PlannerSettings as Settings, type PlanResult } from 
 export default function Home() {
   const [result, setResult] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const latestRequest = useRef(0);
 
   async function handleGenerate(settings: Settings) {
+    // settings can change quickly (e.g. dragging the slider); only the newest response wins
+    const requestId = ++latestRequest.current;
     setLoading(true);
 
     try {
-      setResult(await generatePlan(settings));
+      const plan = await generatePlan(settings);
+      if (requestId === latestRequest.current) setResult(plan);
     } catch (err) {
       console.error(err);
-      alert("Backend not reachable");
+      if (requestId === latestRequest.current) alert("Backend not reachable");
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }
 
@@ -32,7 +36,7 @@ export default function Home() {
 
       <main className="px-4">
         {/* SETTINGS */}
-        <PlannerSettings onGenerate={handleGenerate} loading={loading} />
+        <PlannerSettings onGenerate={handleGenerate} loading={loading} autoUpdate={result !== null} />
 
         {/* TIMELINE */}
         <Timeline result={result} />

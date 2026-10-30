@@ -57,10 +57,61 @@ COURSES = {
     "CS160":   {"title": "User Interface Design",               "units": 4, "prereqs": ["CS61B"],                   "terms": BOTH,       "category": "elective"},
 }
 
-# AP exams (score 4-5) -> Berkeley courses they satisfy.
-# AP CS A grants units only, not credit for CS 61A.
+# AP exams (score 4-5) -> Berkeley requirements they satisfy.
+# "HSS" fills the next open Humanities/Social Sciences breadth slot.
+# An empty list means the exam earns units only, not a course in this plan.
 AP_CREDIT = {
-    "apCalcBC":   ["MATH1A", "MATH1B"],
-    "apPhysicsC": ["PHYS7A"],
-    "apCS":       [],
+    # Math & Computer Science
+    "calcAB":       ["MATH1A"],
+    "calcBC":       ["MATH1A", "MATH1B"],
+    "precalc":      [],
+    "statistics":   [],
+    "csA":          [],
+    "csPrinciples": [],
+
+    # Sciences
+    "physicsCMech": ["PHYS7A"],
+    "physicsCEM":   [],
+    "physics1":     [],
+    "physics2":     [],
+    "chemistry":    [],
+    "biology":      [],
+    "envSci":       [],
+
+    # English
+    "englishLang":  ["R1A"],
+    "englishLit":   ["R1A"],
+
+    # History & Social Sciences
+    "usHistory":       ["HSS"],
+    "worldHistory":    ["HSS"],
+    "euroHistory":     ["HSS"],
+    "usGov":           ["HSS"],
+    "compGov":         ["HSS"],
+    "macroecon":       ["HSS"],
+    "microecon":       ["HSS"],
+    "psychology":      ["HSS"],
+    "humanGeo":        ["HSS"],
+    "africanAmerican": ["HSS"],
+
+    # Arts
+    "artHistory":   ["HSS"],
+    "musicTheory":  ["HSS"],
+    "art2D":        [],
+    "art3D":        [],
+    "drawing":      [],
+
+    # World Languages & Cultures
+    "chinese":      ["HSS"],
+    "french":       ["HSS"],
+    "german":       ["HSS"],
+    "italian":      ["HSS"],
+    "japanese":     ["HSS"],
+    "latin":        ["HSS"],
+    "spanishLang":  ["HSS"],
+    "spanishLit":   ["HSS"],
+
+    # AP Capstone
+    "seminar":      [],
+    "research":     [],
 }

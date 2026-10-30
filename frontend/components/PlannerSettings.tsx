@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import type { PlannerSettings as Settings } from "@/lib/api";
+import { AP_GROUPS, AP_EXAM_COUNT } from "@/lib/apExams";
 
 interface Props {
   onGenerate: (settings: Settings) => void;
   loading: boolean;
+  // once a plan exists, every settings change regenerates it right away
+  autoUpdate: boolean;
 }
 
 const TIMELINES = [
@@ -14,32 +17,36 @@ const TIMELINES = [
   { value: 3, label: "3 years", hint: "Fast track" },
 ];
 
-const AP_EXAMS = [
-  { key: "apCalcBC", label: "AP Calculus BC", credit: "Math 1A + 1B" },
-  { key: "apPhysicsC", label: "AP Physics C: Mech", credit: "Physics 7A" },
-  { key: "apCS", label: "AP Computer Science A", credit: "Units only" },
-] as const;
+export default function PlannerSettings({ onGenerate, loading, autoUpdate }: Props) {
+  const [settings, setSettings] = useState<Settings>({ timeline: 4, maxUnits: 16, ap: [] });
+  const [showAp, setShowAp] = useState(false);
 
-type ApKey = (typeof AP_EXAMS)[number]["key"];
+  function update(changes: Partial<Settings>) {
+    const next = { ...settings, ...changes };
+    setSettings(next);
+    if (autoUpdate) onGenerate(next);
+  }
 
-export default function PlannerSettings({ onGenerate, loading }: Props) {
-  const [timeline, setTimeline] = useState(4);
-  const [maxUnits, setMaxUnits] = useState(16);
-  const [ap, setAp] = useState<Record<ApKey, boolean>>({
-    apCalcBC: false,
-    apPhysicsC: false,
-    apCS: false,
-  });
-
-  function handleGenerate() {
-    onGenerate({ timeline, maxUnits, ...ap });
+  function toggleAp(key: string) {
+    const ap = settings.ap.includes(key)
+      ? settings.ap.filter((k) => k !== key)
+      : [...settings.ap, key];
+    update({ ap });
   }
 
   return (
-    <section className="relative mx-auto -mt-20 max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-berkeley/10 sm:p-8">
-      <h2 className="text-lg font-bold text-berkeley">Plan settings</h2>
+    <section id="settings" className="relative z-10 mx-auto -mt-24 scroll-mt-6 max-w-5xl rounded-3xl border border-white/60 bg-white/95 p-6 shadow-2xl shadow-berkeley/20 backdrop-blur sm:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold text-berkeley">Plan settings</h2>
+        {autoUpdate && (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+            Live: changes update your plan instantly
+          </span>
+        )}
+      </div>
 
-      <div className="mt-6 grid gap-8 md:grid-cols-3">
+      <div className="mt-6 grid gap-8 md:grid-cols-2">
         {/* Timeline */}
         <div>
           <p className="text-sm font-medium text-slate-600">Graduation timeline</p>
@@ -48,15 +55,15 @@ export default function PlannerSettings({ onGenerate, loading }: Props) {
               <button
                 key={t.value}
                 type="button"
-                onClick={() => setTimeline(t.value)}
+                onClick={() => update({ timeline: t.value })}
                 className={`rounded-xl border px-2 py-2 text-center transition ${
-                  timeline === t.value
+                  settings.timeline === t.value
                     ? "border-berkeley bg-berkeley text-white shadow"
                     : "border-slate-200 text-slate-700 hover:border-berkeley-light"
                 }`}
               >
                 <span className="block text-sm font-semibold">{t.label}</span>
-                <span className={`block text-xs ${timeline === t.value ? "text-gold" : "text-slate-400"}`}>
+                <span className={`block text-xs ${settings.timeline === t.value ? "text-gold" : "text-slate-400"}`}>
                   {t.hint}
                 </span>
               </button>
@@ -68,14 +75,14 @@ export default function PlannerSettings({ onGenerate, loading }: Props) {
         <div>
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium text-slate-600">Max units per semester</p>
-            <span className="text-2xl font-bold text-berkeley">{maxUnits}</span>
+            <span className="text-2xl font-bold text-berkeley">{settings.maxUnits}</span>
           </div>
           <input
             type="range"
             min="12"
             max="20"
-            value={maxUnits}
-            onChange={(e) => setMaxUnits(Number(e.target.value))}
+            value={settings.maxUnits}
+            onChange={(e) => update({ maxUnits: Number(e.target.value) })}
             className="mt-4 w-full"
           />
           <div className="mt-1 flex justify-between text-xs text-slate-400">
@@ -83,42 +90,75 @@ export default function PlannerSettings({ onGenerate, loading }: Props) {
             <span>20 · heavier</span>
           </div>
         </div>
+      </div>
 
-        {/* AP Credits */}
-        <div>
-          <p className="text-sm font-medium text-slate-600">AP credit (score 4–5)</p>
-          <div className="mt-3 space-y-2">
-            {AP_EXAMS.map((exam) => (
-              <label
-                key={exam.key}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border px-3 py-2 text-sm transition ${
-                  ap[exam.key]
-                    ? "border-gold bg-gold/10"
-                    : "border-slate-200 hover:border-berkeley-light"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="accent-berkeley"
-                    checked={ap[exam.key]}
-                    onChange={(e) => setAp({ ...ap, [exam.key]: e.target.checked })}
-                  />
-                  {exam.label}
-                </span>
-                <span className="text-xs text-slate-400">{exam.credit}</span>
-              </label>
+      {/* AP Credits */}
+      <div className="mt-8 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+        <button
+          type="button"
+          onClick={() => setShowAp(!showAp)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <span>
+            <span className="text-sm font-semibold text-slate-700">AP credit</span>
+            <span className="ml-2 text-xs text-slate-400">scores of 4–5 · all {AP_EXAM_COUNT} exams</span>
+          </span>
+          <span className="flex items-center gap-3 text-sm">
+            {settings.ap.length > 0 && (
+              <span className="rounded-full bg-gold px-2.5 py-0.5 text-xs font-bold text-berkeley">
+                {settings.ap.length} selected
+              </span>
+            )}
+            <span className="text-berkeley">{showAp ? "Hide ▲" : "Choose exams ▼"}</span>
+          </span>
+        </button>
+
+        {showAp && (
+          <div className="mt-4 space-y-5">
+            {AP_GROUPS.map((group) => (
+              <div key={group.name}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  {group.name}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {group.exams.map((exam) => {
+                    const selected = settings.ap.includes(exam.key);
+                    return (
+                      <button
+                        key={exam.key}
+                        type="button"
+                        onClick={() => toggleAp(exam.key)}
+                        className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                          selected
+                            ? "border-gold bg-gold font-semibold text-berkeley shadow-sm"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-berkeley-light"
+                        }`}
+                      >
+                        {selected && "✓ "}
+                        {exam.label}
+                        <span className={`ml-1.5 ${selected ? "text-berkeley/70" : "text-slate-400"}`}>
+                          · {exam.credit}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
+            <p className="text-xs text-slate-400">
+              &ldquo;Breadth&rdquo; fills a Humanities/Social Sciences requirement. &ldquo;Units&rdquo; counts toward
+              graduation but doesn&apos;t replace a course in this plan.
+            </p>
           </div>
-        </div>
+        )}
       </div>
 
       <button
-        onClick={handleGenerate}
+        onClick={() => onGenerate(settings)}
         disabled={loading}
-        className="mt-8 w-full rounded-xl bg-gold py-3 font-semibold text-berkeley shadow-md transition hover:bg-gold-dark hover:text-white disabled:opacity-50"
+        className="mt-8 w-full rounded-xl bg-linear-to-r from-gold to-amber-400 py-3.5 font-semibold text-berkeley shadow-lg shadow-gold/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
       >
-        {loading ? "Building your roadmap..." : `Generate my ${timeline}-year plan →`}
+        {loading ? "Building your roadmap..." : autoUpdate ? "Regenerate plan ↻" : `Generate my ${settings.timeline}-year plan →`}
       </button>
     </section>
   );

@@ -67,10 +67,17 @@ def build_degree_plan(completed_courses, settings=None):
     completed = set(completed_courses)
 
     ap_credit = []
-    for flag, courses in AP_CREDIT.items():
-        if settings.get(flag):
-            ap_credit.extend(courses)
-    completed.update(ap_credit)
+    for exam in settings.get("ap", []):
+        for course in AP_CREDIT.get(exam, []):
+            if course == "HSS":
+                course = next(
+                    (c for c in COURSES if COURSES[c]["category"] == "hss"
+                     and c.startswith("HSS") and c not in completed),
+                    None,
+                )
+            if course and course not in completed:
+                completed.add(course)
+                ap_credit.append(course)
 
     units_done = sum(COURSES[c]["units"] for c in completed if c in COURSES)
     terms = build_terms(timeline)
