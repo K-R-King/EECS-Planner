@@ -55,7 +55,9 @@ def review(req: ReviewRequest):
 @app.post("/advisor")
 def advisor(req: AdvisorRequest):
     current = review_plan(req.plan, req.settings)
-    reply = get_ai_advice(req.plan, req.question, req.settings, current["issues"], req.history)
+    reply = get_ai_advice(
+        req.plan, req.question, req.settings, current["issues"], req.history, current["ap_credit"]
+    )
 
     if isinstance(reply, str):
         return {"answer": reply, "changes": [], "skipped": [], "result": None}
@@ -63,7 +65,9 @@ def advisor(req: AdvisorRequest):
     if not reply.changes:
         return {"answer": reply.answer, "changes": [], "skipped": [], "result": None}
 
-    schedule, applied, skipped = apply_changes(req.plan, [c.model_dump() for c in reply.changes])
+    schedule, applied, skipped = apply_changes(
+        req.plan, [c.model_dump() for c in reply.changes], current["ap_credit"]
+    )
     updated = review_plan(
         [{"term": term, "courses": codes} for term, codes in schedule],
         req.settings,

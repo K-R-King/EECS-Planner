@@ -30,7 +30,10 @@ Rules for changes:
 - A course must come after all of its prerequisites, only in a term it's offered,
   and every semester must stay at or under the student's unit limit.
 - Never remove a required course (category core, hss, or ethics); move it instead.
-- Keep at least 12 units per semester when you can.
+- Courses covered by AP credit are already done. Don't add them, and don't say they're missing.
+- Every semester must have at least 12 units (the full-time minimum). To lighten a
+  semester, swap a demanding course for a lighter one (e.g. a breadth course) instead
+  of just removing units.
 
 Only use information from the plan and catalog. Be concise, accurate, and friendly."""
 
@@ -46,11 +49,14 @@ class AdvisorReply(BaseModel):
     changes: list[PlanChange]
 
 
-def build_prompt(plan, question, settings, issues, history):
+def build_prompt(plan, question, settings, issues, history, ap_credit):
     schedule = {term: codes for term, codes in plan_to_schedule(plan)}
     past = "\n".join(f"{m['role']}: {m['text']}" for m in history[-6:]) or "(none)"
 
     return f"""Student settings: max {settings.get('maxUnits', 16)} units per semester.
+
+Already satisfied by AP credit (count these as completed before Year 1; never add them to the plan):
+{", ".join(ap_credit) if ap_credit else "(none)"}
 
 Current degree plan (semester -> courses):
 {json.dumps(schedule, indent=2)}
@@ -68,12 +74,12 @@ Student question:
 {question}"""
 
 
-def get_ai_advice(plan, question, settings, issues, history):
+def get_ai_advice(plan, question, settings, issues, history, ap_credit):
     """Returns an AdvisorReply, or an error message string."""
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=build_prompt(plan, question, settings, issues, history),
+            contents=build_prompt(plan, question, settings, issues, history, ap_credit),
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 response_mime_type="application/json",

@@ -6,13 +6,17 @@ FULL_TIME_UNITS = 12
 
 
 def scheduling_passes(hss_per_term):
-    """Categories to fill, in priority order: (category, max courses of that category in this pass)."""
+    """
+    Categories to fill, in priority order:
+    (category, max courses of that category in this pass, may go past the semester's target)
+    """
     return [
-        ("hss", hss_per_term),  # spread breadth courses evenly instead of piling them at the end
-        ("core", None),
-        ("ethics", None),
-        ("elective", None),
-        ("hss", None),          # extra breadth if there's still room
+        ("hss", hss_per_term, False),  # spread breadth courses evenly instead of piling them at the end
+        ("core", None, False),
+        ("ethics", None, False),
+        ("elective", None, False),
+        ("hss", None, False),          # extra breadth if there's still room
+        ("ethics", None, True),        # otherwise squeeze the 1-unit ethics course into leftover room
     ]
 
 
@@ -114,7 +118,9 @@ def summarize(schedule, ap_credit, max_units):
 
         for code in codes:
             info = COURSES[code]
-            if code in seen:
+            if code in ap_credit:
+                issues.append({"term": term, "course": code, "message": f"{code} is already covered by your AP credit."})
+            elif code in seen:
                 issues.append({"term": term, "course": code, "message": f"{code} is already in your plan."})
             elif season not in info["terms"]:
                 issues.append({"term": term, "course": code, "message": f"{code} is only offered in {' & '.join(info['terms'])}."})
@@ -126,6 +132,8 @@ def summarize(schedule, ap_credit, max_units):
 
         if units > max_units:
             issues.append({"term": term, "course": None, "message": f"{units} units is over your {max_units}-unit limit."})
+        elif units < FULL_TIME_UNITS:
+            issues.append({"term": term, "course": None, "message": f"{units} units is below the {FULL_TIME_UNITS}-unit full-time minimum."})
 
         done.update(codes)
         plan.append({
@@ -162,7 +170,7 @@ def review_plan(plan, settings):
     return summarize(plan_to_schedule(plan), ap_credit, max_units)
 
 
-def apply_changes(plan, changes):
+def apply_changes(plan, changes, ap_credit=()):
     """
     Apply advisor edits to a plan.
     changes: [{"action": "move" | "add" | "remove", "course": "CS70", "to_term": "Year 2 Fall"}]
@@ -179,6 +187,9 @@ def apply_changes(plan, changes):
 
         if code not in COURSES:
             skipped.append(f"{change['course']} isn't in the course catalog")
+            continue
+        if code in ap_credit:
+            skipped.append(f"{code} is already covered by your AP credit")
             continue
         if action in ("move", "add") and to_term not in terms:
             skipped.append(f"{code}: '{to_term}' isn't a semester in your plan")
@@ -221,10 +232,10 @@ def build_degree_plan(completed_courses, settings=None):
         semester_courses = []
         units = 0
 
-        for category, limit in scheduling_passes(hss_per_term):
+        for category, limit, past_target in scheduling_passes(hss_per_term):
             added = 0
             for course in COURSES:
-                if units >= target or (limit is not None and added >= limit):
+                if (units >= target and not past_target) or (limit is not None and added >= limit):
                     break
                 if (
                     COURSES[course]["category"] != category
@@ -235,7 +246,19 @@ def build_degree_plan(completed_courses, settings=None):
                     continue
 
                 course_units = COURSES[course]["units"]
-                if units + course_units <= max_units:
+
+                # a small course shouldn't leave the semester unable to reach its target with 4-unit courses
+                # (in the last semester a required course wins anyway, as long as full-time is still reachable)
+                after = units + course_units
+                reachable = after + 4 * ((max_units - after) // 4)
+                strands = (
+                    not past_target
+                    and course_units < 4
+                    and reachable < target
+                    and not (i == len(terms) - 1 and reachable >= FULL_TIME_UNITS)
+                )
+
+                if units + course_units <= max_units and not strands:
                     semester_courses.append(course)
                     units += course_units
                     added += 1
