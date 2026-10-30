@@ -47,6 +47,7 @@ export interface ChatMessage {
 
 export interface AdvisorResponse {
   answer: string;
+  error: boolean;  // answer is a friendly error message (e.g. advisor busy)
   changes: string[];
   skipped: string[];
   result: PlanResult | null;  // the edited plan, if the advisor changed anything

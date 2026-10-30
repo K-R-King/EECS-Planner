@@ -60,10 +60,10 @@ def advisor(req: AdvisorRequest):
     )
 
     if isinstance(reply, str):
-        return {"answer": reply, "changes": [], "skipped": [], "result": None}
+        return {"answer": reply, "error": True, "changes": [], "skipped": [], "result": None}
 
     if not reply.changes:
-        return {"answer": reply.answer, "changes": [], "skipped": [], "result": None}
+        return {"answer": reply.answer, "error": False, "changes": [], "skipped": [], "result": None}
 
     schedule, applied, skipped = apply_changes(
         req.plan, [c.model_dump() for c in reply.changes], current["ap_credit"]
@@ -73,4 +73,4 @@ def advisor(req: AdvisorRequest):
         req.settings,
     )
 
-    return {"answer": reply.answer, "changes": applied, "skipped": skipped, "result": updated}
+    return {"answer": reply.answer, "error": False, "changes": applied, "skipped": skipped, "result": updated}

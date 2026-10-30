@@ -13,6 +13,7 @@ interface Props {
 interface Message extends ChatMessage {
   changes?: string[];
   skipped?: string[];
+  retry?: string;  // set on error messages: the question to ask again
 }
 
 const SUGGESTIONS = [
@@ -35,7 +36,8 @@ export default function Advisor({ plan, settings, onPlanChange, onUndo }: Props)
   async function ask(text: string) {
     if (!text.trim() || loading) return;
 
-    const history = messages.map(({ role, text }) => ({ role, text }));
+    // error replies aren't real conversation, so don't send them back to the advisor
+    const history = messages.filter((m) => !m.retry).map(({ role, text }) => ({ role, text }));
     setMessages((m) => [...m, { role: "student", text }]);
     setQuestion("");
     setLoading(true);
@@ -45,10 +47,15 @@ export default function Advisor({ plan, settings, onPlanChange, onUndo }: Props)
       if (reply.result) onPlanChange(reply.result);
       setMessages((m) => [
         ...m,
-        { role: "advisor", text: reply.answer, changes: reply.changes, skipped: reply.skipped },
+        reply.error
+          ? { role: "advisor", text: reply.answer, retry: text }
+          : { role: "advisor", text: reply.answer, changes: reply.changes, skipped: reply.skipped },
       ]);
     } catch {
-      setMessages((m) => [...m, { role: "advisor", text: "Unable to contact AI advisor." }]);
+      setMessages((m) => [
+        ...m,
+        { role: "advisor", text: "Couldn't reach the planner server. Make sure the backend is running, then try again.", retry: text },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -84,10 +91,24 @@ export default function Advisor({ plan, settings, onPlanChange, onUndo }: Props)
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 m.role === "student"
                   ? "rounded-br-sm bg-berkeley text-white"
-                  : "rounded-bl-sm border border-slate-200 bg-white text-slate-700 shadow-sm"
+                  : m.retry
+                    ? "rounded-bl-sm border border-amber-200 bg-amber-50 text-amber-900"
+                    : "rounded-bl-sm border border-slate-200 bg-white text-slate-700 shadow-sm"
               }`}
             >
+              {m.retry && "⏳ "}
               {m.text}
+
+              {m.retry && i === messages.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => ask(m.retry!)}
+                  disabled={loading}
+                  className="mt-2 block rounded-lg bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-200 disabled:opacity-50"
+                >
+                  ↻ Try again
+                </button>
+              )}
 
               {m.changes && m.changes.length > 0 && (
                 <div className="mt-3 rounded-xl border border-gold/50 bg-gold/10 p-3">
