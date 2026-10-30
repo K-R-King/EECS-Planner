@@ -30,11 +30,10 @@ class AdvisorRequest(BaseModel):
 
 @app.post("/generate-plan")
 def generate_plan(req: PlanRequest):
-    plan = build_degree_plan(
+    return build_degree_plan(
         completed_courses=req.completed_courses,
         settings=req.settings
     )
-    return {"plan": plan}
 
 
 @app.post("/advisor")

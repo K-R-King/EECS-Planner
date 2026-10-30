@@ -5,17 +5,17 @@ import Hero from "@/components/Hero";
 import PlannerSettings from "@/components/PlannerSettings";
 import Timeline from "@/components/Timeline";
 import Advisor from "@/components/Advisor";
-import { generatePlan, type PlannerSettings as Settings, type Semester } from "@/lib/api";
+import { generatePlan, type PlannerSettings as Settings, type PlanResult } from "@/lib/api";
 
 export default function Home() {
-  const [plan, setPlan] = useState<Semester[]>([]);
+  const [result, setResult] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleGenerate(settings: Settings) {
     setLoading(true);
 
     try {
-      setPlan(await generatePlan(settings));
+      setResult(await generatePlan(settings));
     } catch (err) {
       console.error(err);
       alert("Backend not reachable");
@@ -25,28 +25,27 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pb-20">
+    <div className="min-h-screen pb-20">
 
       {/* HERO */}
       <Hero />
 
-      {/* SETTINGS */}
-      <PlannerSettings onGenerate={handleGenerate} loading={loading} />
+      <main className="px-4">
+        {/* SETTINGS */}
+        <PlannerSettings onGenerate={handleGenerate} loading={loading} />
 
-      {/* LOADING STATE */}
-      {loading && (
-        <div className="text-center mt-6 text-gray-600">
-          Generating your EECS roadmap...
-        </div>
-      )}
+        {/* TIMELINE */}
+        <Timeline result={result} />
 
-      {/* TIMELINE */}
-      <Timeline plan={plan} />
+        {/* AI Advisor */}
+        {result && result.plan.length > 0 && (
+          <Advisor plan={result.plan} />
+        )}
+      </main>
 
-      {/* AI Advisor */}
-      {plan.length > 0 && (
-        <Advisor plan={plan} />
-      )}
+      <footer className="mt-16 text-center text-xs text-slate-400">
+        Unofficial planning tool. Always confirm requirements with your EECS advisor.
+      </footer>
 
     </div>
   );

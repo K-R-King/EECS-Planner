@@ -1,18 +1,30 @@
 export default function Hero() {
   return (
-    <div className="text-center py-16">
-      <h1 className="text-5xl font-bold text-gray-900">
-        UC Berkeley EECS Planner
-      </h1>
+    <header className="relative overflow-hidden bg-berkeley px-4 pt-16 pb-32 text-center text-white">
+      {/* soft background glows */}
+      <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-gold/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-berkeley-light/40 blur-3xl" />
 
-      <p className="mt-4 text-gray-600 text-lg max-w-2xl mx-auto">
-        Generate a complete 4-year academic roadmap before you even start college.
-        Designed for incoming EECS students.
-      </p>
+      <div className="relative">
+        <span className="inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-gold">
+          For incoming EECS students
+        </span>
 
-      <div className="mt-6 text-sm text-gray-500">
-        No signup. No setup. Just generate your degree plan.
+        <h1 className="mt-6 text-4xl font-extrabold tracking-tight sm:text-6xl">
+          UC Berkeley <span className="text-gold">EECS</span> Planner
+        </h1>
+
+        <p className="mx-auto mt-5 max-w-2xl text-base text-blue-100 sm:text-lg">
+          Map out every semester of your degree before you even start college:
+          prerequisites, breadth, and electives, all in one roadmap.
+        </p>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-blue-200">
+          <span>✓ No signup</span>
+          <span>✓ Prerequisite-aware</span>
+          <span>✓ AI advisor built in</span>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
