@@ -2,11 +2,12 @@ from collections import defaultdict
 from math import ceil
 
 from backend.curriculum import (
-    AP_AREA_UNIT_CAP, AP_EXAMS, AP_MAX_HSS, COURSES, FOCUS_TRACKS, OFFERINGS_CHECKED, TOTAL_UNITS,
-    UPPER_EECS_UNITS,
+    AP_AREA_UNIT_CAP, AP_EXAMS, AP_MAX_HSS, CATALOG_YEAR, CODE_ALIASES, COURSES, FOCUS_TRACKS,
+    OFFERINGS_CHECKED, TOTAL_UNITS, UPPER_EECS_UNITS,
 )
 
 FULL_TIME_UNITS = 12
+SUMMER_UNITS = 8  # planner preference: at most two courses in a summer session
 
 
 def scheduling_passes(hss_per_term):
@@ -101,8 +102,11 @@ def term_season(term):
 
 
 def normalize_code(code):
-    """"CS 61A" / "cs61a" -> "CS61A" """
-    return code.replace(" ", "").upper()
+    """"CS 61A" / "cs61a" / "COMPSCI 61A" -> "CS61A"; old names like "Math 1A" -> "MATH51" """
+    code = code.replace(" ", "").upper()
+    if code.startswith("COMPSCI"):
+        code = "CS" + code[len("COMPSCI"):]
+    return CODE_ALIASES.get(code, code)
 
 
 def course_info(code, picks=None):
@@ -126,6 +130,8 @@ def catalog():
             "design": info.get("design", False),
             "upper_eecs": info.get("upper_eecs", False),
             "options": info.get("options", []),
+            "description": info.get("description", ""),
+            "class_hours": info.get("class_hours"),  # hours per week in class, not total workload
         }
         for code, info in COURSES.items()
     ]
@@ -135,6 +141,7 @@ def focus_list():
     return {
         "tracks": [{"key": key, "label": track["label"]} for key, track in FOCUS_TRACKS.items()],
         "offerings_checked": OFFERINGS_CHECKED,
+        "catalog_year": CATALOG_YEAR,
     }
 
 
@@ -333,7 +340,11 @@ def review_plan(plan, settings):
     _, max_units, _, scores = parse_settings(settings)
     credited, ap_units = ap_credit(scores)
     completed = [c for c in completed_courses_of(settings) if c not in credited]
-    return summarize(plan_to_schedule(plan), credited, ap_units, max_units, completed, picks_of(settings))
+    result = summarize(plan_to_schedule(plan), credited, ap_units, max_units, completed, picks_of(settings))
+    # only suggest settings changes when the degree doesn't fit; hand-made problems are the student's to fix
+    short = result["total_units"] < TOTAL_UNITS or any(w.startswith("Required courses missing") for w in result["warnings"])
+    result["fixes"] = suggest_fixes([], settings) if short else []
+    return result
 
 
 def apply_changes(plan, changes, credited=(), completed=()):
@@ -378,7 +389,7 @@ def apply_changes(plan, changes, credited=(), completed=()):
 
 
 # ---------- MAIN ENGINE ----------
-def build_degree_plan(completed_courses, settings=None):
+def build_degree_plan(completed_courses, settings=None, suggest=True, fill_summers=False):
     timeline, max_units, summer, scores = parse_settings(settings)
     picks = picks_of(settings)
     credited, ap_units = ap_credit(scores)
@@ -390,19 +401,25 @@ def build_degree_plan(completed_courses, settings=None):
     units_done = ap_units + sum(units_of(c, picks) for c in prior)
 
     terms = build_terms(timeline, summer)
-    # summers start empty; students (or the advisor) fill them by hand
     regular = [t for t in terms if term_season(t) != "Summer"]
+    planning = terms if fill_summers else regular
+
+    def capacity(term):
+        return min(SUMMER_UNITS, max_units) if term_season(term) == "Summer" else max_units
+
     planned = {}
 
-    for i, term in enumerate(regular):
+    for i, term in enumerate(planning):
         year = term_year(term)
         season = term_season(term)
+        cap = capacity(term)
 
-        # spread the remaining units evenly over the remaining semesters
-        terms_left = len(regular) - i
-        target = ceil((TOTAL_UNITS - units_done) / terms_left)
-        target = min(max_units, max(FULL_TIME_UNITS, target))
+        # spread the remaining units over the remaining terms, in proportion to how much each can hold
+        remaining_capacity = sum(capacity(t) for t in planning[i:])
+        target = ceil((TOTAL_UNITS - units_done) * cap / remaining_capacity)
+        target = min(cap, target) if season == "Summer" else min(cap, max(FULL_TIME_UNITS, target))
 
+        terms_left = len(planning) - i
         hss_left = sum(1 for c in COURSES if COURSES[c]["category"] == "hss" and c not in completed)
         hss_per_term = ceil(hss_left / terms_left)
 
@@ -427,15 +444,15 @@ def build_degree_plan(completed_courses, settings=None):
                 # a small course shouldn't leave the semester unable to reach its target with 4-unit courses
                 # (in the last semester a required course wins anyway, as long as full-time is still reachable)
                 after = units + course_units
-                reachable = after + 4 * ((max_units - after) // 4)
+                reachable = after + 4 * ((cap - after) // 4)
                 strands = (
                     not past_target
                     and course_units < 4
                     and reachable < target
-                    and not (i == len(regular) - 1 and reachable >= FULL_TIME_UNITS)
+                    and not (i == len(planning) - 1 and reachable >= FULL_TIME_UNITS)
                 )
 
-                if units + course_units <= max_units and not strands:
+                if units + course_units <= cap and not strands:
                     semester_courses.append(course)
                     units += course_units
                     added += 1
@@ -446,4 +463,45 @@ def build_degree_plan(completed_courses, settings=None):
         planned[term] = semester_courses
 
     schedule = [(term, planned.get(term, [])) for term in terms]
-    return summarize(schedule, credited, ap_units, max_units, prior, picks)
+    result = summarize(schedule, credited, ap_units, max_units, prior, picks)
+
+    # summers start empty (students fill them by hand), unless the degree doesn't fit without them
+    if summer and not fill_summers and result["warnings"]:
+        return build_degree_plan(completed_courses, settings, suggest, fill_summers=True)
+
+    result["fixes"] = suggest_fixes(completed_courses, settings) if suggest and result["warnings"] else []
+    return result
+
+
+TIMELINES = [3, 3.5, 4]
+
+
+def suggest_fixes(completed_courses, settings):
+    """
+    Setting changes that turn an incomplete plan into a complete one, each checked by actually
+    building the plan. Cheapest changes first; at most three.
+    """
+    settings = dict(settings or {})
+    timeline, max_units, summer, _ = parse_settings(settings)
+
+    def complete(changes):
+        trial = build_degree_plan(completed_courses, {**settings, **changes}, suggest=False)
+        return not trial["warnings"] and not trial["issues"]
+
+    def smallest_limit(extra):
+        return next((u for u in range(max_units + 1, 21) if complete({**extra, "maxUnits": u})), None)
+
+    fixes = []
+    limit = smallest_limit({})
+    if limit:
+        fixes.append({"label": f"Raise the unit limit to {limit}", "settings": {"maxUnits": limit}})
+    if not summer:
+        if complete({"summer": True}):
+            fixes.append({"label": "Add summer sessions", "settings": {"summer": True}})
+        elif (limit_with_summer := smallest_limit({"summer": True})) and limit_with_summer != limit:
+            fixes.append({"label": f"Add summer sessions and raise the limit to {limit_with_summer}",
+                          "settings": {"summer": True, "maxUnits": limit_with_summer}})
+    longer = next((t for t in TIMELINES if t > timeline and complete({"timeline": t})), None)
+    if longer:
+        fixes.append({"label": f"Take {longer:g} years", "settings": {"timeline": longer}})
+    return fixes[:3]

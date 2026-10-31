@@ -29,7 +29,16 @@
 import json
 from pathlib import Path
 
+CATALOG_YEAR = "2026–27"  # the rules below are for students entering Fall 2026
 TOTAL_UNITS = 120
+
+# Older and alternate names students (or the advisor) may use -> our codes
+CODE_ALIASES = {
+    "MATH1A": "MATH51", "MATH1B": "MATH52",
+    "EECS16A": "ELENG66", "EECS16B": "ELENG64",
+    "PHYSICS7A": "PHYS7A", "PHYSICS7B": "PHYS7B",
+    "DATAC100": "DATA100", "CS195": "ETHICS",
+}
 UPPER_EECS_UNITS = 20
 
 BOTH = ["Fall", "Spring"]
@@ -210,6 +219,8 @@ for _code, _offering in _offerings["courses"].items():
         if "prereqs" in _offering:
             COURSES[_code]["prereqs"] = _offering["prereqs"]
             COURSES[_code]["prereqs_verified"] = True
+        COURSES[_code]["description"] = _offering.get("description", "")
+        COURSES[_code]["class_hours"] = _offering.get("class_hours")
 
 
 # ---------- INTEREST TRACKS ----------

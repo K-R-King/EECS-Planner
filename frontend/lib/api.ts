@@ -25,6 +25,19 @@ export interface CatalogCourse extends Course {
   design: boolean;      // satisfies the major design requirement
   upper_eecs: boolean;  // counts toward the 20 upper-division EECS units
   options: SlotOption[];  // real choices for a placeholder slot (e.g. the natural science elective)
+  description: string;    // catalog description (EECS courses)
+  class_hours: number | null;  // hours per week in class, not total workload
+}
+
+/** Course details for a tooltip: description, class hours, and prerequisites. */
+export function courseDetails(course: CatalogCourse | undefined): string {
+  if (!course) return "";
+  const parts = [course.description];
+  if (course.class_hours) parts.push(`${course.class_hours} hours/week in class`);
+  if (course.prereqs.length) {
+    parts.push(`Prerequisites: ${prereqText(course.prereqs)}${course.prereqs_verified ? "" : " (estimated)"}`);
+  }
+  return parts.filter(Boolean).join("\n\n");
 }
 
 export function prereqCodes(prereqs: Prereq[]): string[] {
@@ -47,6 +60,7 @@ export interface ApExam {
 export interface FocusTracks {
   tracks: { key: string; label: string }[];
   offerings_checked: string | null;  // when term offerings were last pulled from the EECS site
+  catalog_year: string;              // whose rules these are, e.g. "2026–27"
 }
 
 export interface Semester {
@@ -70,6 +84,7 @@ export interface PlanResult {
   upper_eecs_units: number;
   warnings: string[];
   issues: Issue[];
+  fixes?: { label: string; settings: Partial<PlannerSettings> }[];  // checked changes that complete the plan
 }
 
 export interface PlannerSettings {

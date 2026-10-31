@@ -14,6 +14,8 @@ interface Props {
   loading: boolean;
   // once a plan exists, every settings change regenerates it right away
   autoUpdate: boolean;
+  slow: boolean;         // the server is taking a while (waking up)
+  catalogYear: string;   // whose requirements these are, e.g. "2026–27"
 }
 
 const TIMELINES = [
@@ -24,7 +26,7 @@ const TIMELINES = [
 
 const SCORES = [3, 4, 5];
 
-export default function PlannerSettings({ initial, apExams, focusTracks, catalog, onGenerate, loading, autoUpdate }: Props) {
+export default function PlannerSettings({ initial, apExams, focusTracks, catalog, onGenerate, loading, autoUpdate, slow, catalogYear }: Props) {
   const [settings, setSettings] = useState<Settings>(initial);
   const [showAp, setShowAp] = useState(false);
   const [showTaken, setShowTaken] = useState(false);
@@ -61,7 +63,14 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
   return (
     <section id="settings" className="relative z-10 mx-auto -mt-24 max-w-5xl scroll-mt-6 rounded-3xl border border-white/60 bg-white/95 dark:bg-slate-900/95 p-6 shadow-2xl shadow-berkeley/20 backdrop-blur sm:p-8 print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-berkeley dark:text-blue-300">Plan settings</h2>
+        <div>
+          <h2 className="text-lg font-bold text-berkeley dark:text-blue-300">Plan settings</h2>
+          {catalogYear && (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Uses the {catalogYear} requirements, for students entering Fall {catalogYear.slice(0, 4)}.
+            </p>
+          )}
+        </div>
         {autoUpdate && (
           <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
@@ -117,6 +126,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
           </div>
           <input
             type="range"
+            aria-label="Max units per semester"
             min="12"
             max="20"
             value={settings.maxUnits}
@@ -163,7 +173,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
         >
           <span>
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Courses already taken</span>
-            <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">community college, dual enrollment, or earlier at Berkeley</span>
+            <span className="block text-xs text-slate-500 sm:ml-2 sm:inline dark:text-slate-400">community college, dual enrollment, or earlier at Berkeley</span>
           </span>
           <span className="flex items-center gap-3 text-sm">
             {settings.completed.length > 0 && (
@@ -200,7 +210,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
               className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
             />
             {takenMatches.length > 0 && (
-              <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <ul tabIndex={0} aria-label="Matching courses" className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
                 {takenMatches.map((c) => (
                   <li key={c.code}>
                     <button
@@ -232,7 +242,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
         >
           <span>
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">AP credit</span>
-            <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">all {apExams.length} exams · Berkeley Engineering rules</span>
+            <span className="block text-xs text-slate-500 sm:ml-2 sm:inline dark:text-slate-400">all {apExams.length} exams · Berkeley Engineering rules</span>
           </span>
           <span className="flex items-center gap-3 text-sm">
             {selectedCount > 0 && (
@@ -308,7 +318,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
         disabled={loading}
         className="mt-8 w-full rounded-xl bg-linear-to-r from-gold to-amber-400 py-3.5 font-semibold text-berkeley shadow-lg shadow-gold/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
       >
-        {loading ? "Building your roadmap..." : autoUpdate ? "Regenerate plan ↻" : `Generate my ${settings.timeline}-year plan →`}
+        {loading ? (slow ? "Waking up the server… the first plan can take up to a minute" : "Building your roadmap...") : autoUpdate ? "Regenerate plan ↻" : `Generate my ${settings.timeline}-year plan →`}
       </button>
     </section>
   );

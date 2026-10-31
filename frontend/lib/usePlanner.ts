@@ -31,8 +31,10 @@ export function usePlanner() {
   const [undoStack, setUndoStack] = useState<PlanResult[]>([]);
   const [catalog, setCatalog] = useState<CatalogCourse[]>([]);
   const [apExams, setApExams] = useState<ApExam[]>([]);
-  const [focusTracks, setFocusTracks] = useState<FocusTracks>({ tracks: [], offerings_checked: null });
+  const [focusTracks, setFocusTracks] = useState<FocusTracks>({ tracks: [], offerings_checked: null, catalog_year: "" });
   const [loading, setLoading] = useState(false);
+  // a free-tier server sleeps when idle; if a request takes a while, say so
+  const [slow, setSlow] = useState(false);
   // bumped when settings are restored, so the settings panel re-reads them
   const [restoreCount, setRestoreCount] = useState(0);
   const [restored, setRestored] = useState(false);
@@ -102,6 +104,7 @@ export function usePlanner() {
     const withPicks = { ...next, picks: settings.picks };
     setSettings(withPicks);
     setLoading(true);
+    const slowTimer = setTimeout(() => setSlow(true), 4000);
 
     generatePlan(withPicks)
       .then((plan) => {
@@ -115,10 +118,19 @@ export function usePlanner() {
         if (requestId === latestRequest.current) alert("Backend not reachable");
       })
       .finally(() => {
-        if (requestId === latestRequest.current) setLoading(false);
+        clearTimeout(slowTimer);
+        if (requestId === latestRequest.current) {
+          setLoading(false);
+          setSlow(false);
+        }
       });
 
     return true;
+  }
+
+  /** Apply a suggested settings change (e.g. "Add summer sessions") and rebuild the plan. */
+  function applyFix(changes: Partial<Settings>) {
+    if (generate({ ...settings, ...changes })) setRestoreCount((n) => n + 1);
   }
 
   /** Show an edited plan right away, then let the backend re-check it. */
@@ -157,8 +169,8 @@ export function usePlanner() {
   }
 
   return {
-    result, settings, catalog, apExams, focusTracks, loading, restoreCount,
+    result, settings, catalog, apExams, focusTracks, loading, slow, restoreCount,
     canUndo: undoStack.length > 0,
-    generate, edit, pick, commit, undo, share,
+    generate, applyFix, edit, pick, commit, undo, share,
   };
 }

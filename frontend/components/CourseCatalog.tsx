@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { prereqText, type CatalogCourse, type Category, type PlanResult } from "@/lib/api";
+import { courseDetails, type CatalogCourse, type Category, type PlanResult } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -14,6 +14,8 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
   const [dragOver, setDragOver] = useState(false);
+  // on phones the catalog starts collapsed: dragging doesn't work there, and "+ Add course" does the same job
+  const [open, setOpen] = useState(false);
 
   const planned = new Set([...result.ap_credit, ...(result.completed ?? []), ...result.plan.flatMap((s) => s.courses.map((c) => c.code))]);
   const available = catalog
@@ -37,14 +39,24 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
         dragOver ? "ring-2 ring-red-300" : "ring-1 ring-slate-200 dark:ring-slate-700"
       }`}
     >
-      <div className="bg-linear-to-r from-berkeley to-berkeley-light px-5 py-4 text-white">
-        <h2 className="font-bold">Course catalog</h2>
-        <p className="text-xs text-blue-100">
-          {dragOver ? "Drop here to remove from your plan" : "Drag a course into any semester"}
-        </p>
+      <div className="flex items-center justify-between bg-linear-to-r from-berkeley to-berkeley-light px-5 py-4 text-white">
+        <div>
+          <h2 className="font-bold">Course catalog</h2>
+          <p className="text-xs text-blue-100">
+            {dragOver ? "Drop here to remove from your plan" : "Drag a course into any semester"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="rounded-full border border-white/30 px-3 py-1 text-xs lg:hidden"
+        >
+          {open ? "Hide ▲" : "Show ▼"}
+        </button>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className={`space-y-3 p-4 lg:block ${open ? "block" : "hidden"}`}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -67,7 +79,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
           ))}
         </div>
 
-        <ul className="max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
+        <ul tabIndex={0} aria-label="Courses you can add" className="max-h-[60vh] space-y-1.5 overflow-y-auto pr-1">
           {available.map((c) => (
             <li
               key={c.code}
@@ -76,9 +88,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
                 e.dataTransfer.setData(DRAG_TYPE, c.code);
                 e.dataTransfer.effectAllowed = "move";
               }}
-              title={c.prereqs.length
-                ? `Prerequisites: ${prereqText(c.prereqs)}${c.prereqs_verified ? "" : " (estimated)"}`
-                : "No prerequisites"}
+              title={courseDetails(c) || "No prerequisites"}
               className="flex cursor-grab items-center gap-2.5 rounded-lg border border-slate-100 dark:border-slate-800 px-2.5 py-2 transition hover:border-gold hover:bg-gold/5 active:cursor-grabbing"
             >
               <span className={`h-7 w-1 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />

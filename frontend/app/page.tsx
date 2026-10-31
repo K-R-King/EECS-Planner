@@ -34,6 +34,8 @@ export default function Home() {
           catalog={catalog}
           onGenerate={planner.generate}
           loading={planner.loading}
+          slow={planner.slow}
+          catalogYear={planner.focusTracks.catalog_year}
           autoUpdate={result !== null}
         />
 
@@ -46,6 +48,7 @@ export default function Home() {
             onUndo={planner.undo}
             canUndo={planner.canUndo}
             onShare={planner.share}
+            onFix={planner.applyFix}
             picks={settings.picks}
             onPick={planner.pick}
           />

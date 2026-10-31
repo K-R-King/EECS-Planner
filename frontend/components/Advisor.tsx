@@ -103,7 +103,7 @@ export default function Advisor({ plan, settings, onAccept, onUndo }: Props) {
       </div>
 
       {/* Conversation */}
-      <div ref={conversation} className="max-h-[28rem] space-y-4 overflow-y-auto bg-slate-50/60 dark:bg-slate-950/40 p-6" role="log" aria-live="polite">
+      <div ref={conversation} tabIndex={0} aria-label="Conversation with the advisor" className="max-h-[28rem] space-y-4 overflow-y-auto bg-slate-50/60 dark:bg-slate-950/40 p-6" role="log" aria-live="polite">
         {messages.length === 0 && (
           <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
             Try one of these to get started 👇
@@ -145,7 +145,7 @@ export default function Advisor({ plan, settings, onAccept, onUndo }: Props) {
 
                 {m.changes && m.changes.length > 0 && (
                   <div className="mt-3 rounded-xl border border-gold/50 bg-gold/10 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gold-dark">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-gold">
                       {m.status === "accepted" ? "Plan updated" : m.status === "rejected" ? "Not applied" : "Suggested changes"}
                     </p>
                     <ul className="mt-1 space-y-0.5 text-xs text-slate-700 dark:text-slate-200">

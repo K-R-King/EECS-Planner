@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { prereqCodes, type CatalogCourse, type PlanResult, type Semester } from "@/lib/api";
+import { courseDetails, prereqCodes, type CatalogCourse, type PlannerSettings, type PlanResult, type Semester } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
   onUndo: () => void;
   canUndo: boolean;
   onShare: () => Promise<boolean>;
+  onFix: (changes: Partial<PlannerSettings>) => void;
   picks: Record<string, string>;
   onPick: (code: string, choice: string | null) => void;
 }
@@ -32,7 +33,7 @@ export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: st
   });
 }
 
-export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, picks, onPick }: Props) {
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, onFix, picks, onPick }: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
   const [shared, setShared] = useState<"idle" | "copied" | "failed">("idle");
@@ -161,9 +162,9 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
         </div>
 
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 print:hidden">
-          Drag courses between semesters (or use ⇄ on a phone), × to remove, + to add. Hover a course to see what it{" "}
-          <span className="font-semibold text-sky-600 dark:text-sky-300">needs first</span> and what it{" "}
-          <span className="font-semibold text-gold-dark">unlocks</span>. Your plan is saved in this browser.
+          Drag courses between semesters (or use ⇄ on a phone), × to remove, + to add. Hover or tap a course to see what it{" "}
+          <span className="font-semibold text-sky-700 dark:text-sky-300">needs first</span> and what it{" "}
+          <span className="font-semibold text-amber-800 dark:text-gold">unlocks</span>. Your plan is saved in this browser.
         </p>
       </section>
 
@@ -173,6 +174,21 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
           {warnings.map((w) => (
             <p key={w}>⚠️ {w}</p>
           ))}
+          {result.fixes && result.fixes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 pt-1 print:hidden">
+              <span className="font-medium">Ways to fit everything in:</span>
+              {result.fixes.map((fix) => (
+                <button
+                  key={fix.label}
+                  type="button"
+                  onClick={() => onFix(fix.settings)}
+                  className="rounded-full border border-amber-400 bg-white px-3 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-100"
+                >
+                  {fix.label}
+                </button>
+              ))}
+            </div>
+          )}
           {issues.map((i) => (
             <p key={`${i.term}-${i.course}-${i.message}`}>
               🚫 <span className="font-medium">{i.term}:</span> {i.message}
@@ -188,7 +204,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
           <div className="mb-4 flex items-center gap-3">
             <h2 className="rounded-full bg-berkeley px-4 py-1 text-sm font-bold tracking-wide text-white">{year}</h2>
             <div className="h-px flex-1 bg-linear-to-r from-gold/60 to-transparent" />
-            <span className="text-sm text-slate-500 dark:text-slate-400">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
               {semesters.reduce((sum, s) => sum + s.units, 0)} units
             </span>
           </div>
@@ -267,9 +283,10 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                           }}
                           onMouseEnter={() => setHovered(course.code)}
                           onMouseLeave={() => setHovered(null)}
+                          tabIndex={0}
                           onFocus={() => setHovered(course.code)}
                           onBlur={() => setHovered(null)}
-                          title={problem?.message ?? "Drag to another semester"}
+                          title={problem?.message ?? (courseDetails(byCode.get(course.code)) || "Drag to another semester")}
                           className={`group flex cursor-grab items-center gap-3 rounded-xl py-2 pr-2 transition active:cursor-grabbing ${
                             problem ? "bg-red-50 dark:bg-red-950/40 ring-1 ring-red-300" : "bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800"
                           } ${relation === "needs" ? "ring-2 ring-sky-400" : relation === "unlocks" ? "ring-2 ring-gold" : ""}`}
@@ -279,7 +296,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                               {course.code}
                               {relation && (
-                                <span className={`ml-2 text-[10px] font-bold uppercase ${relation === "needs" ? "text-sky-600 dark:text-sky-300" : "text-gold-dark"}`}>
+                                <span className={`ml-2 text-[10px] font-bold uppercase ${relation === "needs" ? "text-sky-700 dark:text-sky-300" : "text-amber-800 dark:text-gold"}`}>
                                   {relation === "needs" ? "needed first" : "unlocks"}
                                 </span>
                               )}
@@ -352,7 +369,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                           placeholder="Search courses, e.g. CS 189"
                           className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
                         />
-                        <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800">
+                        <ul tabIndex={0} aria-label="Matching courses" className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800">
                           {matches.map((c) => (
                             <li key={c.code}>
                               <button

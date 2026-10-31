@@ -4,14 +4,13 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
+from backend.core import normalize_code
 from backend.curriculum import AP_EXAMS, COURSES, FOCUS_TRACKS
 
 Term = Annotated[str, StringConstraints(pattern=r"^Year [1-4] (Fall|Spring|Summer)$")]
 CourseCode = Annotated[str, StringConstraints(min_length=1, max_length=20)]
 
 
-def normalize(code: str) -> str:
-    return code.replace(" ", "").upper()
 
 
 class Settings(BaseModel):
@@ -52,7 +51,7 @@ class Settings(BaseModel):
     @field_validator("completed")
     @classmethod
     def known_courses(cls, completed):
-        codes = [normalize(c) for c in completed]
+        codes = [normalize_code(c) for c in completed]
         unknown = [c for c in codes if c not in COURSES]
         if unknown:
             raise ValueError(f"unknown courses: {', '.join(unknown)}")

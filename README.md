@@ -56,7 +56,7 @@ pip install -r backend/requirements-dev.txt
 python -m pytest                    # backend: planner rules, AP credit, validation, advisor
 
 cd frontend
-npx playwright test                 # browser: drag and drop, undo, saving, share links, advisor approval, dark mode
+npx playwright test                 # browser: drag and drop, undo, saving, share links, advisor approval, dark mode, accessibility
 ```
 
 The backend tests build a plan for every combination of timeline, unit limit, AP credit, and summer setting and check it against every rule. The browser tests drive the real page against the real backend; Gemini is faked in both, so no API key is needed. Locally, Playwright reuses running servers and your installed Chrome. GitHub Actions runs everything, plus the frontend typecheck, lint, and build, on every push.
@@ -77,23 +77,35 @@ python scripts/eval_advisor.py
 
 Sends 10 typical requests ("make Year 2 lighter", "add CS 182 somewhere", …) to the real advisor and scores whether its suggested edits break any rule, before and after its automatic correction step. It uses your Gemini key (10–20 requests) and is paced for Gemini's free tier, which allows 5 requests per minute.
 
-## Deploying
+## Deploying (free)
 
-The frontend and backend deploy separately, e.g. the frontend on [Vercel](https://vercel.com) and the backend on [Render](https://render.com).
+Everything runs on free tiers: Vercel for the frontend, Render for the backend, and Gemini's free API tier.
 
-**Backend** (start command `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`, from the repo root), environment variables:
+**1. Backend on Render**
+1. Sign in at [render.com](https://render.com) with GitHub, then **New → Blueprint** and pick this repo. It reads `render.yaml`.
+2. When asked, enter your `GEMINI_API_KEY`. Leave `ALLOWED_ORIGINS` blank for now.
+3. When it's live, copy its URL (e.g. `https://eecs-planner-api.onrender.com`).
 
-| Variable | Purpose |
+**2. Frontend on Vercel**
+1. Sign in at [vercel.com](https://vercel.com) with GitHub, **Add New → Project**, pick this repo, and set **Root Directory** to `frontend`.
+2. Add environment variables:
+
+| Variable | Value |
 | --- | --- |
-| `GEMINI_API_KEY` | Gemini key for the AI advisor |
-| `ALLOWED_ORIGINS` | Your frontend's URL, e.g. `https://my-planner.vercel.app` (comma-separated for several) |
-| `ADVISOR_REQUESTS_PER_MINUTE` | Optional, default 10 per visitor, protects your Gemini usage |
+| `NEXT_PUBLIC_API_URL` | your Render URL from step 1 |
+| `NEXT_PUBLIC_FEEDBACK_URL` | optional: a Google Form link, which adds a "Send feedback" button |
 
-**Frontend** (root directory `frontend/`), environment variable:
+3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`).
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_API_URL` | Your backend's URL, e.g. `https://my-planner-api.onrender.com` |
+**3. Connect them:** in Render, set `ALLOWED_ORIGINS` to your Vercel URL and redeploy.
+
+Things to know about the free tiers:
+- **Render sleeps** after about 15 idle minutes; the next visitor waits up to a minute (the page says so).
+- **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10).
+
+## Keeping course data fresh
+
+A GitHub Action (`.github/workflows/refresh-course-data.yml`) re-reads the EECS course pages on the 1st of every month and, if anything changed, opens a pull request with the test results. To let it open pull requests, enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. You can also run it any time from the Actions tab.
 
 ## API
 

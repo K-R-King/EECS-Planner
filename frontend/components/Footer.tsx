@@ -4,6 +4,9 @@ const STEPS = [
   { icon: "✋", title: "Make it yours", text: "Drag courses around or ask the AI advisor to edit it." },
 ];
 
+// a Google Form (or any page) where students can report problems; the link only shows when it's set
+const FEEDBACK_URL = process.env.NEXT_PUBLIC_FEEDBACK_URL;
+
 export default function Footer({ offeringsChecked }: { offeringsChecked: string | null }) {
   return (
     <footer className="relative mt-24 overflow-hidden print:hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pt-16 pb-10 text-white">
@@ -41,9 +44,21 @@ export default function Footer({ offeringsChecked }: { offeringsChecked: string 
             Unofficial planning tool. Always confirm requirements with your EECS advisor.
             {offeringsChecked && <><br />Term offerings from the EECS department, checked {offeringsChecked}.</>}
           </p>
-          <a href="#top" className="rounded-full border border-white/20 px-4 py-1.5 text-xs transition hover:border-gold hover:text-gold">
-            Back to top ↑
-          </a>
+          <div className="flex gap-2">
+            {FEEDBACK_URL && (
+              <a
+                href={FEEDBACK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-gold px-4 py-1.5 text-xs font-semibold text-berkeley transition hover:bg-gold-dark hover:text-white"
+              >
+                💬 Send feedback
+              </a>
+            )}
+            <a href="#top" className="rounded-full border border-white/20 px-4 py-1.5 text-xs transition hover:border-gold hover:text-gold">
+              Back to top ↑
+            </a>
+          </div>
         </div>
       </div>
     </footer>

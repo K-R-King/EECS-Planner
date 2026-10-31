@@ -5,6 +5,7 @@ Each page at https://www2.eecs.berkeley.edu/Courses/<CODE>/ lists:
   - "Formats": the terms a course is approved for (Fall / Spring / Summer)
   - "Class Schedule (<Term> <Year>)": terms it's actually scheduled
   - "Prerequisites": the official prerequisite text
+  - "Catalog Description" and the weekly class hours in each format
 A course counts as offered in a term if either list includes it. Courses without a page
 (math, physics, brand-new courses) keep the defaults in curriculum.py.
 
@@ -89,8 +90,29 @@ def parse_prereqs(text):
     return unique
 
 
+def description_of(text):
+    """The catalog description, trimmed to whole sentences (about 300 characters)."""
+    match = re.search(r"Catalog Description:(.*?)(Units:|Course Objectives|Prerequisites?:|$)", text)
+    if not match:
+        return ""
+    description = match.group(1).strip()
+    if len(description) <= 300:
+        return description
+    cut = description[:300].rsplit(". ", 1)[0]
+    return cut + "." if len(cut) > 80 else description[:297] + "..."
+
+
+def class_hours(formats_text):
+    """Hours per week in class during a regular semester (lecture + discussion + lab), e.g. 4.0."""
+    match = re.search(r"(?:Fall|Spring):(.*?)per week", formats_text)
+    if not match:
+        return None
+    hours = sum(float(h) for h in re.findall(r"(\d+(?:\.\d+)?) hours?", match.group(1)))
+    return hours or None
+
+
 def course_page(dept_code):
-    """(terms offered, prerequisite text) from the page, or None if there's no usable page."""
+    """(terms offered, prerequisite text, description, class hours) from the page, or None."""
     try:
         with urllib.request.urlopen(PAGE.format(dept_code), timeout=20) as response:
             text = response.read().decode("utf-8", "replace")
@@ -105,7 +127,12 @@ def course_page(dept_code):
     terms = {t for t in SEASONS if f"{t}:" in formats.group(1)}
     terms |= {season for season, _ in re.findall(r"Class Schedule \((Fall|Spring|Summer) (\d{4})\)", text)}
     prereq = re.search(r"Prerequisites?:(.*?)(Credit Restrictions|Formats:)", text)
-    return [t for t in SEASONS if t in terms], (prereq.group(1).strip() if prereq else "")
+    return (
+        [t for t in SEASONS if t in terms],
+        prereq.group(1).strip() if prereq else "",
+        description_of(text),
+        class_hours(formats.group(1)),
+    )
 
 
 def main():
@@ -116,15 +143,23 @@ def main():
         if not page or not page[0]:
             print(f"{code:10} no page, keeping defaults")
             continue
-        terms, prereq_text = page
+        terms, prereq_text, description, hours = page
         prereqs = MANUAL_PREREQS.get(code, parse_prereqs(prereq_text))
         print(f"{code:10} {', '.join(terms):22} prereqs {prereqs}   <- {prereq_text[:90]!r}")
         offerings[code] = {
             "terms": terms,
             "prereqs": prereqs,
             "prereq_text": prereq_text,
+            "description": description,
+            "class_hours": hours,
             "source": PAGE.format(dept_code),
         }
+
+    # only touch the file when the data changed, so the monthly refresh doesn't open empty pull requests
+    previous = json.loads(OUTPUT.read_text()) if OUTPUT.exists() else {}
+    if previous.get("courses") == offerings:
+        print(f"\nNo changes since {previous.get('checked')}")
+        return
 
     OUTPUT.write_text(json.dumps({
         "checked": datetime.date.today().isoformat(),

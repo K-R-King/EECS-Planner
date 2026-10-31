@@ -3,7 +3,7 @@ import itertools
 import pytest
 
 from backend.core import (
-    FULL_TIME_UNITS, ap_credit, apply_changes, build_degree_plan, build_terms, review_plan,
+    FULL_TIME_UNITS, ap_credit, apply_changes, build_degree_plan, build_terms, prereq_met, review_plan,
 )
 from backend.curriculum import AP_EXAMS, COURSES, TOTAL_UNITS, UPPER_EECS_UNITS
 
@@ -35,16 +35,17 @@ def test_generated_plan_has_no_issues(settings):
 def test_generated_plan_respects_prereqs_terms_and_limits(settings):
     result = build_degree_plan([], settings)
     done = set(result["ap_credit"])
+    final = [s for s in result["plan"] if not s["term"].endswith("Summer")][-1]
 
     for semester in result["plan"]:
         season = semester["term"].split()[-1]
         for code in codes(semester):
             info = COURSES[code]
             assert season in info["terms"], f"{code} not offered in {semester['term']}"
-            assert all(p in done for p in info["prereqs"]), f"{code} before its prereqs"
+            assert all(prereq_met(p, done) for p in info["prereqs"]), f"{code} before its prereqs"
             assert code not in done, f"{code} scheduled twice"
         assert semester["units"] <= settings["maxUnits"]
-        if season != "Summer":
+        if season != "Summer" and semester is not final:  # the final semester may be lighter
             assert semester["units"] >= FULL_TIME_UNITS
         done.update(codes(semester))
 
@@ -302,3 +303,40 @@ def test_final_semester_may_be_light():
     ])
     assert not any("Year 4 Spring" == i["term"] and "full-time minimum" in i["message"]
                    for i in review_plan(plan, SETTINGS)["issues"])
+
+
+# ---------- fast-track suggestions ----------
+
+@pytest.mark.parametrize("settings", [
+    {"timeline": 3, "maxUnits": 16},
+    {"timeline": 3.5, "maxUnits": 14},
+    {"timeline": 4, "maxUnits": 12},
+])
+def test_short_plans_suggest_fixes_that_actually_work(settings):
+    result = build_degree_plan([], settings)
+    assert result["warnings"] and result["fixes"]
+    for fix in result["fixes"]:
+        fixed = build_degree_plan([], {**settings, **fix["settings"]})
+        assert fixed["warnings"] == [] and fixed["issues"] == [], fix["label"]
+
+
+def test_complete_plans_suggest_nothing():
+    assert build_degree_plan([], SETTINGS)["fixes"] == []
+
+
+def test_summers_are_used_only_when_needed():
+    def summer_units(settings):
+        result = build_degree_plan([], {**settings, "summer": True})
+        return [s["units"] for s in result["plan"] if s["term"].endswith("Summer")]
+
+    assert set(summer_units({"timeline": 4, "maxUnits": 16})) == {0}
+    assert any(summer_units({"timeline": 3, "maxUnits": 20}))
+
+
+def test_old_course_names_are_understood():
+    from backend.core import normalize_code
+    assert normalize_code("Math 1A") == "MATH51"
+    assert normalize_code("EECS 16B") == "ELENG64"
+    assert normalize_code("COMPSCI 61A") == "CS61A"
+    result = build_degree_plan([], {"timeline": 4, "maxUnits": 16, "completed": ["Math 1A", "EECS 16A"]})
+    assert result["completed"] == ["MATH51", "ELENG66"]
