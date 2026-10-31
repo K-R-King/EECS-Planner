@@ -19,8 +19,8 @@ jobs:
     env:
       GEMINI_API_KEY: test-key  # the tests fake every Gemini call
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -58,7 +58,7 @@ jobs:
           } > pr-body.md
           rm refresh-log.txt test-log.txt
 
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8.1.1
         with:
           branch: refresh-course-data
           commit-message: Refresh course data from the EECS course pages
