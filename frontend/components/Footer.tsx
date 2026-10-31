@@ -4,7 +4,7 @@ const STEPS = [
   { icon: "✋", title: "Make it yours", text: "Drag courses around or ask the AI advisor to edit it." },
 ];
 
-export default function Footer() {
+export default function Footer({ offeringsChecked }: { offeringsChecked: string | null }) {
   return (
     <footer className="relative mt-24 overflow-hidden print:hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pt-16 pb-10 text-white">
       <div className="hero-grid pointer-events-none absolute inset-0" />
@@ -39,6 +39,7 @@ export default function Footer() {
           </div>
           <p className="text-center text-xs text-blue-200">
             Unofficial planning tool. Always confirm requirements with your EECS advisor.
+            {offeringsChecked && <><br />Term offerings from the EECS department, checked {offeringsChecked}.</>}
           </p>
           <a href="#top" className="rounded-full border border-white/20 px-4 py-1.5 text-xs transition hover:border-gold hover:text-gold">
             Back to top ↑

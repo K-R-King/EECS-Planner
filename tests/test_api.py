@@ -102,3 +102,69 @@ def test_advisor_rate_limit(monkeypatch):
     limited = ask()
     assert limited["error"] is True
     assert "wait a minute" in limited["answer"]
+
+
+# ---------- validation ----------
+
+@pytest.mark.parametrize("settings", [
+    {"maxUnits": "abc"},
+    {"maxUnits": 40},
+    {"timeline": 5},
+    {"ap": {"notAnExam": 5}},
+    {"ap": {"calcBC": 9}},
+    {"focus": "basketweaving"},
+    {"completed": ["CS999"]},
+])
+def test_bad_settings_are_rejected_clearly(settings):
+    response = client.post("/generate-plan", json={"settings": settings})
+    assert response.status_code == 422
+
+
+def test_bad_plan_and_question_are_rejected():
+    assert client.post("/review-plan", json={"plan": [{"term": "Year 9 Winter", "courses": []}]}).status_code == 422
+    assert client.post("/advisor", json={"plan": [], "question": ""}).status_code == 422
+    assert client.post("/advisor", json={"plan": [], "question": "x" * 5000}).status_code == 422
+
+
+def test_focus_tracks_endpoint():
+    data = client.get("/focus-tracks").json()
+    assert {"balanced", "ai", "hardware"} <= {t["key"] for t in data["tracks"]}
+    assert data["offerings_checked"]
+
+
+# ---------- streaming ----------
+
+def fake_stream(monkeypatch, *chunks):
+    class Chunk:
+        def __init__(self, text):
+            self.text = text
+
+    def generate_content_stream(**_):
+        for chunk in chunks:
+            if isinstance(chunk, Exception):
+                raise chunk
+            yield Chunk(chunk)
+
+    monkeypatch.setattr(ai.client.models, "generate_content_stream", generate_content_stream)
+
+
+def stream(question="make it easier"):
+    with client.stream("POST", "/advisor/stream", json={"plan": plan(), "question": question, "settings": SETTINGS}) as r:
+        return [__import__("json").loads(line) for line in r.iter_lines() if line]
+
+
+def test_stream_sends_answer_pieces_then_the_proposal(monkeypatch):
+    fake_stream(monkeypatch, '{"answer": "Moving ', 'CS 188 later.", "changes": [',
+                '{"action": "move", "course": "CS188", "to_term": "Year 4 Fall"}]}')
+    events = stream()
+    deltas = "".join(e["text"] for e in events if e["type"] == "delta")
+    done = events[-1]
+    assert deltas == "Moving CS 188 later."
+    assert done["type"] == "done" and done["changes"] == ["Moved CS188 → Year 4 Fall"]
+    assert done["result"] is not None
+
+
+def test_stream_retries_then_reports_friendly_error(monkeypatch):
+    fake_stream(monkeypatch, server_error())
+    events = stream()
+    assert events == [{"type": "done", **main.error_reply(ai.BUSY_MESSAGE)}]

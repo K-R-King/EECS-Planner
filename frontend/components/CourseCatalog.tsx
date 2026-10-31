@@ -15,7 +15,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
   const [category, setCategory] = useState<Category | "all">("all");
   const [dragOver, setDragOver] = useState(false);
 
-  const planned = new Set([...result.ap_credit, ...result.plan.flatMap((s) => s.courses.map((c) => c.code))]);
+  const planned = new Set([...result.ap_credit, ...(result.completed ?? []), ...result.plan.flatMap((s) => s.courses.map((c) => c.code))]);
   const available = catalog
     .filter((c) => !planned.has(c.code))
     .filter((c) => category === "all" || c.category === category)
@@ -33,8 +33,8 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
         setDragOver(false);
         onRemove(e.dataTransfer.getData(DRAG_TYPE));
       }}
-      className={`overflow-hidden rounded-2xl bg-white shadow-sm transition lg:sticky lg:top-6 ${
-        dragOver ? "ring-2 ring-red-300" : "ring-1 ring-slate-200"
+      className={`overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-sm transition lg:sticky lg:top-6 ${
+        dragOver ? "ring-2 ring-red-300" : "ring-1 ring-slate-200 dark:ring-slate-700"
       }`}
     >
       <div className="bg-linear-to-r from-berkeley to-berkeley-light px-5 py-4 text-white">
@@ -49,7 +49,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by code or name..."
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-berkeley-light focus:ring-2 focus:ring-berkeley-light/20"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light focus:ring-2 focus:ring-berkeley-light/20"
         />
 
         <div className="flex flex-wrap gap-1.5">
@@ -59,7 +59,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
               type="button"
               onClick={() => setCategory(cat)}
               className={`rounded-full px-2.5 py-1 text-xs transition ${
-                category === cat ? "bg-berkeley text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                category === cat ? "bg-berkeley text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               {cat === "all" ? "All" : CATEGORY_STYLES[cat].label}
@@ -77,18 +77,18 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
                 e.dataTransfer.effectAllowed = "move";
               }}
               title={c.prereqs.length ? `Prerequisites: ${c.prereqs.join(", ")}` : "No prerequisites"}
-              className="flex cursor-grab items-center gap-2.5 rounded-lg border border-slate-100 px-2.5 py-2 transition hover:border-gold hover:bg-gold/5 active:cursor-grabbing"
+              className="flex cursor-grab items-center gap-2.5 rounded-lg border border-slate-100 dark:border-slate-800 px-2.5 py-2 transition hover:border-gold hover:bg-gold/5 active:cursor-grabbing"
             >
               <span className={`h-7 w-1 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800">{c.code}</p>
-                <p className="truncate text-xs text-slate-500">{c.title}</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{c.code}</p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{c.title}</p>
               </div>
-              <span className="text-xs text-slate-400">{c.units}u</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{c.units}u</span>
             </li>
           ))}
           {available.length === 0 && (
-            <li className="py-6 text-center text-xs text-slate-400">Every matching course is already in your plan</li>
+            <li className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">Every matching course is already in your plan</li>
           )}
         </ul>
       </div>

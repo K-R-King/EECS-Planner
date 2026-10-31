@@ -19,18 +19,41 @@
 #   design         - satisfies the major design requirement
 #   deadline_year  - must be finished by the end of this year (Reading & Composition)
 #   min_year       - planner heuristic: don't auto-schedule before this year
+#   upper_hss      - an upper-division H/SS slot (2 of the 6 must be upper-division)
+#   options        - real choices for a placeholder slot
+
+import json
+from pathlib import Path
 
 TOTAL_UNITS = 120
 UPPER_EECS_UNITS = 20
 
 BOTH = ["Fall", "Spring"]
-ALL = ["Fall", "Spring", "Summer"]  # commonly offered in summer too (not verified per year)
+ALL = ["Fall", "Spring", "Summer"]  # default only; offerings.json overrides with real data
+
+# Choices for placeholder slots. The Engineering H/SS page doesn't list individual courses;
+# it accepts the L&S breadth categories below (find courses with the Class Schedule filters).
+NATSCI_OPTIONS = [
+    "CHEM 1A + 1AL (General Chemistry)", "CHEM 4A (Chemical Structure & Reactivity)",
+    "BIOLOGY 1A + 1AL (General Biology)", "BIOLOGY 1B (General Biology)",
+    "PHYSICS 7C (Physics for Scientists & Engineers)", "ASTRON 7A (Introduction to Astrophysics)",
+    "ASTRON 7B (Introduction to Astrophysics)", "MCB 32 + 32L (Human Physiology)",
+]
+HSS_OPTIONS = [
+    "Historical Studies course", "Social & Behavioral Sciences course", "Arts & Literature course",
+    "Philosophy & Values course", "International Studies course", "Foreign language course",
+    "American Cultures course",
+]
+UPPER_HSS_OPTIONS = [
+    "ENGIN 125 (Ethics, Engineering & Society)", "ENGIN 185 (Art of STEM Communication)",
+    "BIOENG 100 (Ethics in Science & Engineering)",
+] + [f"Upper-division {o}" for o in HSS_OPTIONS]
 
 COURSES = {
     # ---------- CORE (lower division) ----------
     "MATH51":  {"title": "Calculus I (formerly Math 1A)",      "units": 4, "prereqs": [],                     "terms": ALL,  "category": "core"},
     "CS61A":   {"title": "Structure & Interpretation of Programs", "units": 4, "prereqs": [],                "terms": ALL,  "category": "core"},
-    "NATSCI":  {"title": "Natural Science Elective (e.g. Chem 1A, Bio 1A)", "units": 4, "prereqs": [],       "terms": BOTH, "category": "core"},
+    "NATSCI":  {"title": "Natural Science Elective",           "units": 4, "prereqs": [],                     "terms": BOTH, "category": "core", "options": NATSCI_OPTIONS},
     "MATH52":  {"title": "Calculus II (formerly Math 1B)",     "units": 4, "prereqs": ["MATH51"],             "terms": ALL,  "category": "core"},
     "CS61B":   {"title": "Data Structures",                    "units": 4, "prereqs": ["CS61A"],              "terms": ALL,  "category": "core"},
     "MATH54":  {"title": "Linear Algebra & Differential Equations", "units": 4, "prereqs": ["MATH52"],       "terms": ALL,  "category": "core"},
@@ -46,10 +69,10 @@ COURSES = {
     # ---------- READING & COMPOSITION + H/SS BREADTH ----------
     "R1A":  {"title": "Reading & Composition A",            "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "deadline_year": 1},
     "R1B":  {"title": "Reading & Composition B",            "units": 4, "prereqs": ["R1A"], "terms": ALL, "category": "hss", "deadline_year": 2},
-    "HSS1": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss"},
-    "HSS2": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss"},
-    "HSS3": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "min_year": 2},
-    "HSS4": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "min_year": 2},
+    "HSS1": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "options": HSS_OPTIONS},
+    "HSS2": {"title": "Humanities/Social Sciences Breadth", "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "options": HSS_OPTIONS},
+    "HSS3": {"title": "Upper-Division H/SS Breadth",        "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "min_year": 2, "upper_hss": True, "options": UPPER_HSS_OPTIONS},
+    "HSS4": {"title": "Upper-Division H/SS Breadth",        "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "min_year": 2, "upper_hss": True, "options": UPPER_HSS_OPTIONS},
 
     # ---------- ETHICS ----------
     "CS195": {"title": "Social Implications of Computer Technology", "units": 1, "prereqs": [], "terms": BOTH, "category": "ethics", "min_year": 2},
@@ -152,4 +175,30 @@ AP_EXAMS = {
     # AP Capstone (not on the chart)
     "seminar":      {"label": "Seminar",                  "group": "AP Capstone", "units": 0, "credit": []},
     "research":     {"label": "Research",                 "group": "AP Capstone", "units": 0, "credit": []},
+}
+
+
+# ---------- REAL TERM OFFERINGS ----------
+# backend/offerings.json comes from the EECS department's course pages (scripts/update_offerings.py)
+# and overrides the default terms above wherever a page exists.
+
+_offerings_file = Path(__file__).parent / "offerings.json"
+_offerings = json.loads(_offerings_file.read_text()) if _offerings_file.exists() else {"checked": None, "courses": {}}
+
+OFFERINGS_CHECKED = _offerings["checked"]
+for _code, _offering in _offerings["courses"].items():
+    if _code in COURSES:
+        COURSES[_code]["terms"] = _offering["terms"]
+
+
+# ---------- INTEREST TRACKS ----------
+# Electives the planner tries first for each focus (each list starts early with a design course,
+# so every plan meets the design requirement). Anything not listed falls back to the default order.
+FOCUS_TRACKS = {
+    "balanced": {"label": "Balanced",  "electives": []},
+    "ai":       {"label": "AI / ML",   "electives": ["CS189", "CS188", "CS182", "EECS127", "CS170", "EECS126", "DATA100", "CS186"]},
+    "systems":  {"label": "Systems",   "electives": ["CS162", "CS168", "CS186", "CS161", "CS164", "CS152", "CS169A", "CS170"]},
+    "theory":   {"label": "Theory",    "electives": ["CS170", "CS162", "CS172", "CS174", "EECS126", "CS191", "EECS127", "CS188"]},
+    "hardware": {"label": "Hardware",  "electives": ["EECS151", "CS152", "EECS149", "ELENG105", "ELENG120", "EECS106A", "CS162", "CS170"]},
+    "security": {"label": "Security",  "electives": ["CS161", "CS162", "CS168", "CS170", "CS164", "CS186", "CS152", "CS188"]},
 }

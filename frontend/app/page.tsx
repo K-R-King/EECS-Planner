@@ -10,17 +10,19 @@ import Footer from "@/components/Footer";
 import {
   fetchApExams,
   fetchCatalog,
+  fetchFocusTracks,
   generatePlan,
   reviewPlan,
   type ApExam,
   type CatalogCourse,
+  type FocusTracks,
   type PlannerSettings as Settings,
   type PlanResult,
   type Semester,
 } from "@/lib/api";
-import { clearShareLink, loadSaved, readShareLink, save, shareLink } from "@/lib/share";
+import { clearShareLink, loadSaved, readShareLink, save, shareLink, type Picks } from "@/lib/share";
 
-const DEFAULT_SETTINGS: Settings = { timeline: 4, maxUnits: 16, summer: false, ap: {} };
+const DEFAULT_SETTINGS: Settings = { timeline: 4, maxUnits: 16, summer: false, ap: {}, focus: "balanced", completed: [] };
 
 export default function Home() {
   const [result, setResult] = useState<PlanResult | null>(null);
@@ -29,6 +31,8 @@ export default function Home() {
   const [undoStack, setUndoStack] = useState<PlanResult[]>([]);
   const [catalog, setCatalog] = useState<CatalogCourse[]>([]);
   const [apExams, setApExams] = useState<ApExam[]>([]);
+  const [focusTracks, setFocusTracks] = useState<FocusTracks>({ tracks: [], offerings_checked: null });
+  const [picks, setPicks] = useState<Picks>({});
   const [loading, setLoading] = useState(false);
   // bumped when settings are restored, so the settings panel re-reads them
   const [restoreCount, setRestoreCount] = useState(0);
@@ -38,6 +42,7 @@ export default function Home() {
   useEffect(() => {
     fetchCatalog().then(setCatalog).catch(console.error);
     fetchApExams().then(setApExams).catch(console.error);
+    fetchFocusTracks().then(setFocusTracks).catch(console.error);
 
     // a shared link wins over whatever this browser saved
     const shared = readShareLink();
@@ -45,8 +50,9 @@ export default function Home() {
       clearShareLink();
       reviewPlan(shared.plan, shared.settings)
         .then((checked) => {
-          setSettings(shared.settings);
+          setSettings({ ...DEFAULT_SETTINGS, ...shared.settings });
           setResult(checked);
+          setPicks(shared.picks);
           setEdited(true);
           setRestoreCount((n) => n + 1);
         })
@@ -57,8 +63,9 @@ export default function Home() {
 
     Promise.resolve(loadSaved()).then((saved) => {
       if (saved) {
-        setSettings(saved.settings);
+        setSettings({ ...DEFAULT_SETTINGS, ...saved.settings });
         setResult(saved.result);
+        setPicks(saved.picks ?? {});
         setEdited(saved.edited);
         setRestoreCount((n) => n + 1);
       }
@@ -68,8 +75,8 @@ export default function Home() {
 
   // keep the plan across refreshes (only after restoring, so we don't overwrite it with nothing)
   useEffect(() => {
-    if (restored) save({ settings, result, edited });
-  }, [restored, settings, result, edited]);
+    if (restored) save({ settings, result, edited, picks });
+  }, [restored, settings, result, edited, picks]);
 
   // keep the previous version so edits can be undone
   function commit(next: PlanResult) {
@@ -132,7 +139,7 @@ export default function Home() {
   async function handleShare(): Promise<boolean> {
     if (!result) return false;
     try {
-      await navigator.clipboard.writeText(shareLink(settings, result.plan));
+      await navigator.clipboard.writeText(shareLink(settings, result.plan, picks));
       return true;
     } catch {
       return false;
@@ -147,8 +154,8 @@ export default function Home() {
 
       {/* shown only when printing */}
       <div className="hidden px-4 pb-4 print:block">
-        <h1 className="text-2xl font-bold text-berkeley">My UC Berkeley EECS Plan</h1>
-        <p className="text-xs text-slate-500">Unofficial planning tool. Confirm requirements with your EECS advisor.</p>
+        <h1 className="text-2xl font-bold text-berkeley dark:text-blue-300">My UC Berkeley EECS Plan</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Unofficial planning tool. Confirm requirements with your EECS advisor.</p>
       </div>
 
       <main className="px-4">
@@ -157,6 +164,8 @@ export default function Home() {
           key={restoreCount}
           initial={settings}
           apExams={apExams}
+          focusTracks={focusTracks.tracks}
+          catalog={catalog}
           onGenerate={handleGenerate}
           loading={loading}
           autoUpdate={result !== null}
@@ -171,6 +180,13 @@ export default function Home() {
             onUndo={undo}
             canUndo={undoStack.length > 0}
             onShare={handleShare}
+            picks={picks}
+            onPick={(code, choice) => setPicks((p) => {
+              const next = { ...p };
+              if (choice) next[code] = choice;
+              else delete next[code];
+              return next;
+            })}
           />
           {result && (
             <div className="print:hidden">
@@ -186,12 +202,12 @@ export default function Home() {
         {/* AI Advisor */}
         {result && result.plan.length > 0 && (
           <div className="mx-auto mt-12 max-w-5xl print:hidden">
-            <Advisor plan={result.plan} settings={settings} onPlanChange={commit} onUndo={undo} />
+            <Advisor plan={result.plan} settings={settings} onAccept={commit} onUndo={undo} />
           </div>
         )}
       </main>
 
-      <Footer />
+      <Footer offeringsChecked={focusTracks.offerings_checked} />
 
     </div>
   );

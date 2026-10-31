@@ -1,13 +1,15 @@
+import json
 import os
 import time
 from collections import defaultdict, deque
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 
-from backend.core import ap_exam_list, apply_changes, build_degree_plan, catalog, review_plan
-from backend.ai import get_ai_advice
+from backend.core import ap_exam_list, apply_changes, build_degree_plan, catalog, focus_list, review_plan
+from backend.ai import get_ai_advice, stream_ai_advice
+from backend.schemas import AdvisorRequest, PlanRequest, ReviewRequest
 
 app = FastAPI()
 
@@ -26,10 +28,12 @@ app.add_middleware(
 # ---------------- RATE LIMIT ----------------
 # every advisor question costs a Gemini request, so cap them per visitor
 ADVISOR_LIMIT = int(os.environ.get("ADVISOR_REQUESTS_PER_MINUTE", "10"))
+RATE_LIMIT_MESSAGE = "You're asking questions faster than the advisor can keep up. Please wait a minute and try again."
 _advisor_calls: dict[str, deque] = defaultdict(deque)
 
 
-def advisor_allowed(client_ip: str) -> bool:
+def advisor_allowed(request: Request) -> bool:
+    client_ip = request.client.host if request.client else "unknown"
     now = time.monotonic()
     calls = _advisor_calls[client_ip]
     while calls and now - calls[0] > 60:
@@ -38,22 +42,6 @@ def advisor_allowed(client_ip: str) -> bool:
         return False
     calls.append(now)
     return True
-
-
-# ---------------- MODELS ----------------
-class PlanRequest(BaseModel):
-    completed_courses: list[str] = []
-    settings: dict = {}
-
-class ReviewRequest(BaseModel):
-    plan: list[dict] = []
-    settings: dict = {}
-
-class AdvisorRequest(BaseModel):
-    plan: list[dict] = []
-    question: str = ""
-    settings: dict = {}
-    history: list[dict] = []
 
 
 # ---------------- ROUTES ----------------
@@ -68,44 +56,84 @@ def ap_exams():
     return ap_exam_list()
 
 
+@app.get("/focus-tracks")
+def focus_tracks():
+    return focus_list()
+
+
 @app.post("/generate-plan")
 def generate_plan(req: PlanRequest):
     return build_degree_plan(
         completed_courses=req.completed_courses,
-        settings=req.settings
+        settings=req.settings.model_dump()
     )
 
 
 @app.post("/review-plan")
 def review(req: ReviewRequest):
-    return review_plan(req.plan, req.settings)
+    return review_plan([s.model_dump() for s in req.plan], req.settings.model_dump())
+
+
+def advisor_context(req: AdvisorRequest):
+    plan = [s.model_dump() for s in req.plan]
+    settings = req.settings.model_dump()
+    current = review_plan(plan, settings)
+    already_done = current["ap_credit"] + current["completed"]
+    args = (plan, req.question, settings, current["issues"], [h.model_dump() for h in req.history], already_done)
+    return plan, settings, current, args
+
+
+def proposal(reply, plan, settings, current):
+    """
+    The advisor's answer plus, if it suggested edits, the plan with them applied.
+    The edits are only a proposal: the student accepts or rejects them in the page.
+    """
+    if not reply.changes:
+        return {"answer": reply.answer, "error": False, "changes": [], "skipped": [], "result": None}
+
+    schedule, applied, skipped = apply_changes(
+        plan, [c.model_dump() for c in reply.changes], current["ap_credit"], current["completed"]
+    )
+    proposed = review_plan([{"term": term, "courses": codes} for term, codes in schedule], settings)
+
+    return {"answer": reply.answer, "error": False, "changes": applied, "skipped": skipped,
+            "result": proposed if applied else None}
+
+
+def error_reply(message):
+    return {"answer": message, "error": True, "changes": [], "skipped": [], "result": None}
 
 
 @app.post("/advisor")
 def advisor(req: AdvisorRequest, request: Request):
-    no_changes = {"changes": [], "skipped": [], "result": None}
+    if not advisor_allowed(request):
+        return error_reply(RATE_LIMIT_MESSAGE)
 
-    if not advisor_allowed(request.client.host if request.client else "unknown"):
-        return {"answer": "You're asking questions faster than the advisor can keep up. Please wait a minute and try again.",
-                "error": True, **no_changes}
+    plan, settings, current, args = advisor_context(req)
+    reply = get_ai_advice(*args)
+    return error_reply(reply) if isinstance(reply, str) else proposal(reply, plan, settings, current)
 
-    current = review_plan(req.plan, req.settings)
-    reply = get_ai_advice(
-        req.plan, req.question, req.settings, current["issues"], req.history, current["ap_credit"]
-    )
 
-    if isinstance(reply, str):
-        return {"answer": reply, "error": True, **no_changes}
+@app.post("/advisor/stream")
+def advisor_stream(req: AdvisorRequest, request: Request):
+    """
+    Same as /advisor, streamed as newline-delimited JSON:
+    {"type": "delta", "text": ...} while the answer is written, then {"type": "done", ...the /advisor reply}.
+    """
+    allowed = advisor_allowed(request)
 
-    if not reply.changes:
-        return {"answer": reply.answer, "error": False, **no_changes}
+    def events():
+        if not allowed:
+            yield json.dumps({"type": "done", **error_reply(RATE_LIMIT_MESSAGE)}) + "\n"
+            return
 
-    schedule, applied, skipped = apply_changes(
-        req.plan, [c.model_dump() for c in reply.changes], current["ap_credit"]
-    )
-    updated = review_plan(
-        [{"term": term, "courses": codes} for term, codes in schedule],
-        req.settings,
-    )
+        plan, settings, current, args = advisor_context(req)
+        for kind, value in stream_ai_advice(*args):
+            if kind == "delta":
+                yield json.dumps({"type": "delta", "text": value}) + "\n"
+            elif kind == "error":
+                yield json.dumps({"type": "done", **error_reply(value)}) + "\n"
+            else:
+                yield json.dumps({"type": "done", **proposal(value, plan, settings, current)}) + "\n"
 
-    return {"answer": reply.answer, "error": False, "changes": applied, "skipped": skipped, "result": updated}
+    return StreamingResponse(events(), media_type="application/x-ndjson")

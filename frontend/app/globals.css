@@ -41,12 +41,37 @@
 
 html {
   scroll-behavior: smooth;
+  /* form controls and scrollbars follow the system theme */
+  color-scheme: light dark;
 }
 
 body {
   color: #0f172a;
   background: #f4f6fb;
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #e2e8f0;
+    background: #0b1220;
+  }
+}
+
+/* a visible focus ring for keyboard users, on every theme */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+@media print {
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: white;
+    color: #0f172a;
+  }
 }
 
 input[type="range"] {

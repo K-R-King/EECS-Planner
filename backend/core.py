@@ -2,8 +2,11 @@ from collections import defaultdict
 from math import ceil
 
 from backend.curriculum import (
-    AP_AREA_UNIT_CAP, AP_EXAMS, AP_MAX_HSS, COURSES, TOTAL_UNITS, UPPER_EECS_UNITS,
+    AP_AREA_UNIT_CAP, AP_EXAMS, AP_MAX_HSS, COURSES, FOCUS_TRACKS, OFFERINGS_CHECKED, TOTAL_UNITS,
+    UPPER_EECS_UNITS,
 )
+
+UPPER_HSS_COURSES = 2
 
 FULL_TIME_UNITS = 12
 
@@ -90,9 +93,23 @@ def catalog():
             "terms": info["terms"],
             "design": info.get("design", False),
             "upper_eecs": info.get("upper_eecs", False),
+            "options": info.get("options", []),
         }
         for code, info in COURSES.items()
     ]
+
+
+def focus_list():
+    return {
+        "tracks": [{"key": key, "label": track["label"]} for key, track in FOCUS_TRACKS.items()],
+        "offerings_checked": OFFERINGS_CHECKED,
+    }
+
+
+def course_order(focus):
+    """All course codes, with the focus track's electives first."""
+    preferred = FOCUS_TRACKS.get(focus, FOCUS_TRACKS["balanced"])["electives"]
+    return preferred + [c for c in COURSES if c not in preferred]
 
 
 def ap_exam_list():
@@ -115,6 +132,12 @@ def parse_settings(settings):
     max_units = int(settings.get("maxUnits", 16))
     summer = bool(settings.get("summer", False))
     return timeline, max_units, summer, settings.get("ap", {})
+
+
+def completed_courses_of(settings, extra=()):
+    """Courses the student already took (e.g. community college, dual enrollment)."""
+    codes = [normalize_code(c) for c in [*(settings or {}).get("completed", []), *extra]]
+    return list(dict.fromkeys(c for c in codes if c in COURSES))
 
 
 def ap_credit(scores):
@@ -148,8 +171,10 @@ def ap_credit(scores):
         rows = [cs for min_score, cs in info["credit"] if score >= min_score]
         for course in (rows[-1] if rows else []):
             if course == "HSS":
+                # AP exams are lower-division, so they never fill an upper-division H/SS slot
                 course = next(
-                    (c for c in COURSES if c.startswith("HSS") and c not in courses),
+                    (c for c in COURSES if c.startswith("HSS") and not COURSES[c].get("upper_hss")
+                     and c not in courses),
                     None,
                 )
             if not course or course in courses:
@@ -172,12 +197,13 @@ def plan_to_schedule(plan):
 
 
 # ---------- REVIEW ----------
-def summarize(schedule, credited, ap_units, max_units):
+def summarize(schedule, credited, ap_units, max_units, completed=()):
     """Turn [(term, [codes])] into the API response, checking every course along the way."""
     plan = []
     issues = []
-    done = set(credited)   # finished before the current semester
-    seen = set(credited)   # anywhere so far, to catch duplicates
+    prior = set(credited) | set(completed)
+    done = set(prior)   # finished before the current semester
+    seen = set(prior)   # anywhere so far, to catch duplicates
 
     for term, codes in schedule:
         season = term_season(term)
@@ -189,6 +215,8 @@ def summarize(schedule, credited, ap_units, max_units):
             info = COURSES[code]
             if code in credited:
                 issues.append({"term": term, "course": code, "message": f"{code} is already covered by your AP credit."})
+            elif code in completed:
+                issues.append({"term": term, "course": code, "message": f"You've already taken {code}."})
             elif code in seen:
                 issues.append({"term": term, "course": code, "message": f"{code} is already in your plan."})
             elif season not in info["terms"]:
@@ -213,9 +241,10 @@ def summarize(schedule, credited, ap_units, max_units):
             "units": units
         })
 
-    in_plan = seen - set(credited)
-    total_units = round(sum(COURSES[c]["units"] for c in in_plan) + ap_units, 2)
-    upper_eecs = sum(COURSES[c]["units"] for c in in_plan if COURSES[c].get("upper_eecs"))
+    # courses taken here or before Berkeley (AP gives units instead of course units)
+    taken = seen - set(credited)
+    total_units = round(sum(COURSES[c]["units"] for c in taken) + ap_units, 2)
+    upper_eecs = sum(COURSES[c]["units"] for c in taken if COURSES[c].get("upper_eecs"))
 
     warnings = []
 
@@ -224,7 +253,7 @@ def summarize(schedule, credited, ap_units, max_units):
         warnings.append(f"Required courses missing from your plan: {', '.join(missing)}.")
     if upper_eecs < UPPER_EECS_UNITS:
         warnings.append(f"Only {upper_eecs} of the {UPPER_EECS_UNITS} upper-division EECS units the major requires.")
-    if not any(COURSES[c].get("design") for c in in_plan):
+    if not any(COURSES[c].get("design") for c in taken):
         design = [c for c in COURSES if COURSES[c].get("design")]
         warnings.append(f"No design course yet. The major requires one, e.g. {', '.join(design[:5])}.")
     if total_units < TOTAL_UNITS:
@@ -238,6 +267,7 @@ def summarize(schedule, credited, ap_units, max_units):
         "total_units": total_units,
         "ap_credit": list(credited),
         "ap_units": ap_units,
+        "completed": list(completed),
         "upper_eecs_units": upper_eecs,
         "warnings": warnings,
         "issues": issues,
@@ -248,10 +278,11 @@ def review_plan(plan, settings):
     """Re-check a plan the student (or the advisor) edited."""
     _, max_units, _, scores = parse_settings(settings)
     credited, ap_units = ap_credit(scores)
-    return summarize(plan_to_schedule(plan), credited, ap_units, max_units)
+    completed = [c for c in completed_courses_of(settings) if c not in credited]
+    return summarize(plan_to_schedule(plan), credited, ap_units, max_units, completed)
 
 
-def apply_changes(plan, changes, credited=()):
+def apply_changes(plan, changes, credited=(), completed=()):
     """
     Apply advisor edits to a plan.
     changes: [{"action": "move" | "add" | "remove", "course": "CS70", "to_term": "Year 2 Fall"}]
@@ -271,6 +302,9 @@ def apply_changes(plan, changes, credited=()):
             continue
         if code in credited:
             skipped.append(f"{code} is already covered by your AP credit")
+            continue
+        if code in completed:
+            skipped.append(f"You've already taken {code}")
             continue
         if action in ("move", "add") and to_term not in terms:
             skipped.append(f"{code}: '{to_term}' isn't a semester in your plan")
@@ -293,9 +327,11 @@ def apply_changes(plan, changes, credited=()):
 def build_degree_plan(completed_courses, settings=None):
     timeline, max_units, summer, scores = parse_settings(settings)
     credited, ap_units = ap_credit(scores)
+    prior = [c for c in completed_courses_of(settings, completed_courses) if c not in credited]
+    order = course_order((settings or {}).get("focus", "balanced"))
 
-    completed = set(completed_courses) | set(credited)
-    units_done = ap_units + sum(COURSES[c]["units"] for c in completed_courses if c in COURSES)
+    completed = set(prior) | set(credited)
+    units_done = ap_units + sum(COURSES[c]["units"] for c in prior)
 
     terms = build_terms(timeline, summer)
     # summers start empty; students (or the advisor) fill them by hand
@@ -319,7 +355,7 @@ def build_degree_plan(completed_courses, settings=None):
 
         for category, limit, past_target in scheduling_passes(hss_per_term):
             added = 0
-            for course in COURSES:
+            for course in order:
                 if (units >= target and not past_target) or (limit is not None and added >= limit):
                     break
                 if (
@@ -354,4 +390,4 @@ def build_degree_plan(completed_courses, settings=None):
         planned[term] = semester_courses
 
     schedule = [(term, planned.get(term, [])) for term in terms]
-    return summarize(schedule, credited, ap_units, max_units)
+    return summarize(schedule, credited, ap_units, max_units, prior)

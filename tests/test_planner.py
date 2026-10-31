@@ -196,3 +196,51 @@ def test_review_flags_ap_duplicate():
     plan = build_degree_plan([], settings)["plan"]
     plan[0]["courses"].append("MATH51")
     assert "MATH51 is already covered by your AP credit." in messages(review_plan(plan, settings))
+
+
+# ---------- focus tracks ----------
+
+@pytest.mark.parametrize("focus", list(__import__("backend.curriculum", fromlist=["FOCUS_TRACKS"]).FOCUS_TRACKS))
+def test_every_focus_completes_the_degree(focus):
+    result = build_degree_plan([], {"timeline": 4, "maxUnits": 16, "focus": focus})
+    assert result["warnings"] == [] and result["issues"] == []
+
+
+def test_focus_changes_the_electives():
+    def electives(focus):
+        result = build_degree_plan([], {"timeline": 4, "maxUnits": 16, "focus": focus})
+        return {c for s in result["plan"] for c in codes(s) if COURSES[c]["category"] == "elective"}
+
+    assert "EECS151" in electives("hardware")
+    assert "CS182" in electives("ai")
+    assert electives("hardware") != electives("ai")
+
+
+# ---------- courses taken before Berkeley ----------
+
+def test_completed_courses_are_skipped_and_counted():
+    result = build_degree_plan([], {"timeline": 4, "maxUnits": 16, "completed": ["CS61A", "MATH51"]})
+    planned = {c for s in result["plan"] for c in codes(s)}
+    assert "CS61A" not in planned and "MATH51" not in planned
+    assert result["completed"] == ["CS61A", "MATH51"]
+    assert result["issues"] == []
+
+
+def test_review_flags_retaking_a_completed_course():
+    settings = {**SETTINGS, "completed": ["CS61A"]}
+    plan = build_degree_plan([], settings)["plan"]
+    plan[1]["courses"].append("CS61A")
+    assert "You've already taken CS61A." in messages(review_plan(plan, settings))
+
+
+# ---------- H/SS ----------
+
+def test_ap_never_fills_upper_division_hss():
+    courses, _ = ap_credit({"usHistory": 5, "psychology": 5, "latin": 5})
+    assert all(not COURSES[c].get("upper_hss") for c in courses)
+    assert sum(1 for c in COURSES if COURSES[c].get("upper_hss")) == 2
+
+
+def test_placeholder_slots_offer_real_choices():
+    assert any("CHEM 1A" in o for o in COURSES["NATSCI"]["options"])
+    assert any("ENGIN 125" in o for o in COURSES["HSS3"]["options"])

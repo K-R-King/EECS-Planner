@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Literal
@@ -12,10 +13,13 @@ from google.genai import errors, types
 from pydantic import BaseModel
 
 from backend.core import catalog, plan_to_schedule
+from backend.curriculum import FOCUS_TRACKS
 
 load_dotenv(Path(__file__).parent / ".env")
 
 logger = logging.getLogger("uvicorn.error")
+
+MODEL = "gemini-2.5-flash"
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
@@ -36,7 +40,10 @@ Rules for changes:
 - A course must come after all of its prerequisites, only in a term it's offered,
   and every semester must stay at or under the student's unit limit.
 - Never remove a required course (category core, hss, or ethics); move it instead.
-- Courses covered by AP credit are already done. Don't add them, and don't say they're missing.
+- Courses covered by AP credit or taken before Berkeley are already done. Don't add them,
+  and don't say they're missing.
+- At least 2 of the H/SS courses must be upper-division (the HSS3 and HSS4 slots).
+- When choosing electives, prefer ones that fit the student's focus if they have one.
 - Reading & Composition A must be done by the end of Year 1 and B by the end of Year 2.
 - Keep at least 20 units of upper-division EECS courses and at least one design course
   (catalog field design=true).
@@ -58,14 +65,16 @@ class AdvisorReply(BaseModel):
     changes: list[PlanChange]
 
 
-def build_prompt(plan, question, settings, issues, history, ap_credit):
+def build_prompt(plan, question, settings, issues, history, already_done):
     schedule = {term: codes for term, codes in plan_to_schedule(plan)}
     past = "\n".join(f"{m['role']}: {m['text']}" for m in history[-6:]) or "(none)"
+    focus = FOCUS_TRACKS.get(settings.get("focus", "balanced"), FOCUS_TRACKS["balanced"])["label"]
 
-    return f"""Student settings: max {settings.get('maxUnits', 16)} units per semester.
+    return f"""Student settings: max {settings.get('maxUnits', 16)} units per semester. Focus: {focus}.
 
-Already satisfied by AP credit (count these as completed before Year 1; never add them to the plan):
-{", ".join(ap_credit) if ap_credit else "(none)"}
+Already done through AP credit or courses taken before Berkeley (count these as completed before Year 1;
+never add them to the plan):
+{", ".join(already_done) if already_done else "(none)"}
 
 Current degree plan (semester -> courses):
 {json.dumps(schedule, indent=2)}
@@ -92,18 +101,42 @@ OFFLINE_MESSAGE = "Couldn't reach the advisor. Check your internet connection an
 GENERIC_MESSAGE = "Something went wrong with the advisor. Please try again."
 
 
-def get_ai_advice(plan, question, settings, issues, history, ap_credit):
+def gemini_config():
+    return types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_schema=AdvisorReply,
+    )
+
+
+def friendly_error(e):
+    """Map a Gemini failure to (message for the student, worth retrying)."""
+    if isinstance(e, errors.ServerError):
+        # 500/503: usually a temporary demand spike
+        logger.warning("Gemini server error: %s", e)
+        return BUSY_MESSAGE, True
+    if isinstance(e, errors.ClientError):
+        logger.error("Gemini client error: %s", e)
+        if e.code == 429:
+            return LIMIT_MESSAGE, False
+        if e.code in (400, 401, 403):
+            return SETUP_MESSAGE, False
+        return GENERIC_MESSAGE, False
+    if isinstance(e, httpx.TransportError):
+        logger.error("Couldn't reach Gemini: %s", e)
+        return OFFLINE_MESSAGE, False
+    logger.exception("Unexpected advisor error", exc_info=e)
+    return GENERIC_MESSAGE, False
+
+
+def get_ai_advice(plan, question, settings, issues, history, already_done):
     """Returns an AdvisorReply, or a friendly error message string."""
     for attempt in range(len(RETRY_DELAYS) + 1):
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=build_prompt(plan, question, settings, issues, history, ap_credit),
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    response_mime_type="application/json",
-                    response_schema=AdvisorReply,
-                ),
+                model=MODEL,
+                contents=build_prompt(plan, question, settings, issues, history, already_done),
+                config=gemini_config(),
             )
 
             if response.parsed:
@@ -111,26 +144,59 @@ def get_ai_advice(plan, question, settings, issues, history, ap_credit):
             logger.warning("Gemini reply couldn't be parsed: %s", response.text)
             return GENERIC_MESSAGE
 
-        except errors.ServerError as e:
-            # 500/503: usually a temporary demand spike, so retry a couple of times
-            logger.warning("Gemini server error (attempt %d): %s", attempt + 1, e)
-            if attempt < len(RETRY_DELAYS):
+        except Exception as e:
+            message, retry = friendly_error(e)
+            if retry and attempt < len(RETRY_DELAYS):
                 time.sleep(RETRY_DELAYS[attempt])
                 continue
-            return BUSY_MESSAGE
+            return message
 
-        except errors.ClientError as e:
-            logger.error("Gemini client error: %s", e)
-            if e.code == 429:
-                return LIMIT_MESSAGE
-            if e.code in (400, 401, 403):
-                return SETUP_MESSAGE
-            return GENERIC_MESSAGE
 
-        except httpx.TransportError as e:
-            logger.error("Couldn't reach Gemini: %s", e)
-            return OFFLINE_MESSAGE
+ANSWER_SO_FAR = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)')
 
-        except Exception:
-            logger.exception("Unexpected advisor error")
-            return GENERIC_MESSAGE
+
+def partial_answer(raw):
+    """The `answer` text from a JSON reply that's still arriving, decoded as far as possible."""
+    match = ANSWER_SO_FAR.search(raw)
+    if not match:
+        return ""
+    text = match.group(1)
+    # drop a trailing escape that hasn't fully arrived yet (e.g. a lone backslash or "\u00")
+    text = re.sub(r"\\(u[0-9a-fA-F]{0,3})?$", "", text)
+    try:
+        return json.loads(f'"{text}"')
+    except json.JSONDecodeError:
+        return ""
+
+
+def stream_ai_advice(plan, question, settings, issues, history, already_done):
+    """
+    Yields ("delta", text) as the answer is written, then ("done", AdvisorReply)
+    or ("error", friendly message).
+    """
+    for attempt in range(len(RETRY_DELAYS) + 1):
+        raw = ""
+        sent = ""
+        try:
+            for chunk in client.models.generate_content_stream(
+                model=MODEL,
+                contents=build_prompt(plan, question, settings, issues, history, already_done),
+                config=gemini_config(),
+            ):
+                raw += chunk.text or ""
+                answer = partial_answer(raw)
+                if len(answer) > len(sent):
+                    yield "delta", answer[len(sent):]
+                    sent = answer
+
+            yield "done", AdvisorReply.model_validate_json(raw)
+            return
+
+        except Exception as e:
+            message, retry = friendly_error(e)
+            # only retry if the student hasn't seen any of the answer yet
+            if retry and not sent and attempt < len(RETRY_DELAYS):
+                time.sleep(RETRY_DELAYS[attempt])
+                continue
+            yield "error", message
+            return

@@ -1,0 +1,205 @@
+{
+  "checked": "2026-10-31",
+  "courses": {
+    "CS61A": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61A/"
+    },
+    "CS61B": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61B/"
+    },
+    "CS61C": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61C/"
+    },
+    "CS70": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI70/"
+    },
+    "CS195": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI195/"
+    },
+    "CS170": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI170/"
+    },
+    "CS188": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI188/"
+    },
+    "CS162": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI162/"
+    },
+    "CS189": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI189/"
+    },
+    "CS161": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI161/"
+    },
+    "CS186": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI186/"
+    },
+    "EECS127": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/EECS127/"
+    },
+    "CS164": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI164/"
+    },
+    "CS168": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI168/"
+    },
+    "CS169A": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI169A/"
+    },
+    "EECS126": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/EECS126/"
+    },
+    "EECS151": {
+      "terms": [
+        "Fall"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/EECS151/"
+    },
+    "ELENG120": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/ELENG120/"
+    },
+    "CS184": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI184/"
+    },
+    "CS160": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI160/"
+    },
+    "CS152": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI152/"
+    },
+    "CS172": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI172/"
+    },
+    "CS174": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI174/"
+    },
+    "CS176": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI176/"
+    },
+    "CS182": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI182/"
+    },
+    "EECS149": {
+      "terms": [
+        "Fall"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/EECS149/"
+    },
+    "ELENG105": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "source": "https://www2.eecs.berkeley.edu/Courses/ELENG105/"
+    }
+  }
+}

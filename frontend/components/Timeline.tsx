@@ -11,6 +11,8 @@ interface Props {
   onUndo: () => void;
   canUndo: boolean;
   onShare: () => Promise<boolean>;
+  picks: Record<string, string>;
+  onPick: (code: string, choice: string | null) => void;
 }
 
 const TOTAL_UNITS = 120;
@@ -30,21 +32,23 @@ export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: st
   });
 }
 
-export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare }: Props) {
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, picks, onPick }: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
   const [shared, setShared] = useState<"idle" | "copied" | "failed">("idle");
+  // the course being hovered, to highlight what it needs and what it unlocks
+  const [hovered, setHovered] = useState<string | null>(null);
 
   if (!result) {
     return (
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-12 text-center shadow-sm">
         <div className="hero-grid pointer-events-none absolute inset-0 opacity-40 invert" />
         <div className="relative">
           <div className="mx-auto flex h-16 w-16 animate-float items-center justify-center rounded-2xl bg-berkeley text-3xl shadow-lg shadow-berkeley/30">
             🗺️
           </div>
-          <p className="mt-5 text-lg font-semibold text-berkeley">Your roadmap will appear here</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-5 text-lg font-semibold text-berkeley dark:text-blue-300">Your roadmap will appear here</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Pick your settings above and hit generate. Then drag courses around to make it yours.
           </p>
         </div>
@@ -53,8 +57,11 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
   }
 
   const { plan, total_units, ap_credit, ap_units, upper_eecs_units, warnings, issues } = result;
-  const planned = new Set([...ap_credit, ...plan.flatMap((s) => s.courses.map((c) => c.code))]);
-  const hasDesign = plan.some((s) => s.courses.some((c) => catalog.find((k) => k.code === c.code)?.design));
+  const planned = new Set([...ap_credit, ...(result.completed ?? []), ...plan.flatMap((s) => s.courses.map((c) => c.code))]);
+  const byCode = new Map(catalog.map((c) => [c.code, c]));
+  const hasDesign = plan.some((s) => s.courses.some((c) => byCode.get(c.code)?.design));
+  const needs = new Set(hovered ? byCode.get(hovered)?.prereqs ?? [] : []);
+  const unlocks = new Set(hovered ? catalog.filter((c) => c.prereqs.includes(hovered)).map((c) => c.code) : []);
 
   function move(code: string, toTerm: string | null) {
     onEdit(placeCourse(plan, catalog, code, toTerm));
@@ -80,37 +87,37 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
     <div className="space-y-10">
 
       {/* Summary */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 print:shadow-none">
+      <section className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 print:shadow-none">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-slate-500">Units toward graduation</p>
-            <p className="text-3xl font-extrabold text-berkeley">
+            <p className="text-sm text-slate-500 dark:text-slate-400">Units toward graduation</p>
+            <p className="text-3xl font-extrabold text-berkeley dark:text-blue-300">
               {total_units}
-              <span className="text-lg font-semibold text-slate-400"> / {TOTAL_UNITS}</span>
+              <span className="text-lg font-semibold text-slate-500 dark:text-slate-400"> / {TOTAL_UNITS}</span>
             </p>
-            {ap_units > 0 && <p className="text-xs text-slate-400">includes {ap_units} AP units</p>}
+            {ap_units > 0 && <p className="text-xs text-slate-500 dark:text-slate-400">includes {ap_units} AP units</p>}
           </div>
           <div className="flex flex-wrap gap-6 text-sm">
             <div>
-              <p className="text-slate-500">Upper-div EECS</p>
+              <p className="text-slate-500 dark:text-slate-400">Upper-div EECS</p>
               <p className={`text-xl font-bold ${upper_eecs_units >= UPPER_EECS_UNITS ? "text-emerald-600" : "text-amber-600"}`}>
                 {upper_eecs_units}/{UPPER_EECS_UNITS} {upper_eecs_units >= UPPER_EECS_UNITS && "✓"}
               </p>
             </div>
             <div>
-              <p className="text-slate-500">Design course</p>
+              <p className="text-slate-500 dark:text-slate-400">Design course</p>
               <p className={`text-xl font-bold ${hasDesign ? "text-emerald-600" : "text-amber-600"}`}>
                 {hasDesign ? "✓ Yes" : "Needed"}
               </p>
             </div>
             <div>
-              <p className="text-slate-500">AP credit</p>
-              <p className="max-w-48 text-xl font-bold text-slate-800">{ap_credit.length ? ap_credit.join(", ") : "None"}</p>
+              <p className="text-slate-500 dark:text-slate-400">AP credit</p>
+              <p className="max-w-48 text-xl font-bold text-slate-800 dark:text-slate-100">{ap_credit.length ? ap_credit.join(", ") : "None"}</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
           <div
             className="h-full rounded-full bg-linear-to-r from-berkeley to-berkeley-light transition-all"
             style={{ width: `${progress}%` }}
@@ -119,7 +126,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+          <div className="flex flex-wrap gap-4 text-xs text-slate-600 dark:text-slate-300">
             {Object.values(CATEGORY_STYLES).map((style) => (
               <span key={style.label} className="flex items-center gap-1.5">
                 <span className={`h-2.5 w-2.5 rounded-full ${style.bar}`} />
@@ -132,14 +139,14 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               type="button"
               onClick={onUndo}
               disabled={!canUndo}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light disabled:opacity-40"
+              className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:border-berkeley-light disabled:opacity-40"
             >
               ↶ Undo
             </button>
             <button
               type="button"
               onClick={share}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light"
+              className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 transition hover:border-berkeley-light"
             >
               {shared === "copied" ? "✓ Link copied" : shared === "failed" ? "Couldn't copy" : "🔗 Share link"}
             </button>
@@ -153,14 +160,16 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
           </div>
         </div>
 
-        <p className="mt-3 text-xs text-slate-400 print:hidden">
-          Drag courses between semesters (or use ⇄ on a phone), × to remove, + to add. Your plan is saved in this browser.
+        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 print:hidden">
+          Drag courses between semesters (or use ⇄ on a phone), × to remove, + to add. Hover a course to see what it{" "}
+          <span className="font-semibold text-sky-600 dark:text-sky-300">needs first</span> and what it{" "}
+          <span className="font-semibold text-gold-dark">unlocks</span>. Your plan is saved in this browser.
         </p>
       </section>
 
       {/* Warnings & problems */}
       {(warnings.length > 0 || issues.length > 0) && (
-        <div className="space-y-1.5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="space-y-1.5 rounded-2xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-800 dark:text-amber-200">
           {warnings.map((w) => (
             <p key={w}>⚠️ {w}</p>
           ))}
@@ -179,7 +188,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
           <div className="mb-4 flex items-center gap-3">
             <h2 className="rounded-full bg-berkeley px-4 py-1 text-sm font-bold tracking-wide text-white">{year}</h2>
             <div className="h-px flex-1 bg-linear-to-r from-gold/60 to-transparent" />
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-slate-500 dark:text-slate-400">
               {semesters.reduce((sum, s) => sum + s.units, 0)} units
             </span>
           </div>
@@ -202,6 +211,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               return (
                 <div
                   key={semester.term}
+                  data-term={semester.term}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setDragOver(semester.term);
@@ -213,7 +223,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                     move(e.dataTransfer.getData(DRAG_TYPE), semester.term);
                   }}
                   className={`rounded-2xl p-5 shadow-sm transition print:shadow-none ${
-                    isSummer ? "bg-sky-50/70 md:col-span-2" : "bg-white"
+                    isSummer ? "bg-sky-50/70 dark:bg-sky-950/30 md:col-span-2" : "bg-white dark:bg-slate-900"
                   } ${
                     isTarget
                       ? "scale-[1.01] ring-2 ring-gold shadow-lg"
@@ -221,19 +231,19 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                         ? "ring-2 ring-red-300"
                         : isSummer
                           ? "border border-dashed border-sky-300"
-                          : "ring-1 ring-slate-200 hover:shadow-md"
+                          : "ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md"
                   }`}
                 >
 
                   {/* Semester Title */}
                   <div className="mb-4 flex items-center justify-between">
-                    <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
+                    <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-slate-100">
                       <span>{SEASON_ICONS[season]}</span>
                       {season}
-                      {isSummer && <span className="text-xs font-normal text-slate-400">optional</span>}
+                      {isSummer && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">optional</span>}
                     </h3>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                      termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                     }`}>
                       {semester.units} units
                     </span>
@@ -244,32 +254,58 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                     {semester.courses.map((course) => {
                       const style = CATEGORY_STYLES[course.category];
                       const problem = issues.find((i) => i.term === semester.term && i.course === course.code);
+                      const options = byCode.get(course.code)?.options ?? [];
+                      const relation = needs.has(course.code) ? "needs" : unlocks.has(course.code) ? "unlocks" : null;
                       return (
                         <li
                           key={course.code}
+                          data-course={course.code}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData(DRAG_TYPE, course.code);
                             e.dataTransfer.effectAllowed = "move";
                           }}
+                          onMouseEnter={() => setHovered(course.code)}
+                          onMouseLeave={() => setHovered(null)}
+                          onFocus={() => setHovered(course.code)}
+                          onBlur={() => setHovered(null)}
                           title={problem?.message ?? "Drag to another semester"}
                           className={`group flex cursor-grab items-center gap-3 rounded-xl py-2 pr-2 transition active:cursor-grabbing ${
-                            problem ? "bg-red-50 ring-1 ring-red-300" : "bg-slate-50 hover:bg-slate-100"
-                          }`}
+                            problem ? "bg-red-50 dark:bg-red-950/40 ring-1 ring-red-300" : "bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          } ${relation === "needs" ? "ring-2 ring-sky-400" : relation === "unlocks" ? "ring-2 ring-gold" : ""}`}
                         >
                           <span className={`h-9 w-1 rounded-full ${style.bar}`} />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-800">{course.code}</p>
-                            <p className={`truncate text-xs ${problem ? "text-red-600" : "text-slate-500"}`}>
-                              {problem ? problem.message : course.title}
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {course.code}
+                              {relation && (
+                                <span className={`ml-2 text-[10px] font-bold uppercase ${relation === "needs" ? "text-sky-600 dark:text-sky-300" : "text-gold-dark"}`}>
+                                  {relation === "needs" ? "needed first" : "unlocks"}
+                                </span>
+                              )}
                             </p>
+                            {problem ? (
+                              <p className="truncate text-xs text-red-600 dark:text-red-300">{problem.message}</p>
+                            ) : options.length > 0 ? (
+                              <select
+                                value={picks[course.code] ?? ""}
+                                onChange={(e) => onPick(course.code, e.target.value || null)}
+                                aria-label={`Choose a course for ${course.title}`}
+                                className="w-full max-w-full truncate rounded bg-transparent text-xs text-slate-500 dark:text-slate-400 outline-none hover:text-berkeley print:appearance-none"
+                              >
+                                <option value="">{course.title}: choose a course…</option>
+                                {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            ) : (
+                              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{course.title}</p>
+                            )}
                           </div>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.chip}`}>
                             {course.units}u
                           </span>
 
                           {/* Move to... (works on phones, where dragging doesn't) */}
-                          <label className="relative rounded-md px-1 text-slate-400 transition hover:bg-slate-200 hover:text-berkeley sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 print:hidden">
+                          <label className="relative rounded-md px-1 text-slate-500 dark:text-slate-400 transition hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-berkeley sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 print:hidden">
                             <span aria-hidden>⇄</span>
                             <select
                               aria-label={`Move ${course.code} to`}
@@ -297,7 +333,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                     })}
                   </ul>
                   {isSummer && semester.courses.length === 0 && (
-                    <p className="text-center text-xs text-slate-400">Drag a course here to take it over the summer</p>
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Drag a course here to take it over the summer</p>
                   )}
 
                   {/* Add course */}
@@ -310,9 +346,9 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                           onChange={(e) => setPicker({ term: semester.term, query: e.target.value })}
                           onKeyDown={(e) => e.key === "Escape" && setPicker(null)}
                           placeholder="Search courses, e.g. CS 189"
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
+                          className="w-full rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
                         />
-                        <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100">
+                        <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100 dark:border-slate-800">
                           {matches.map((c) => (
                             <li key={c.code}>
                               <button
@@ -325,15 +361,15 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                               >
                                 <span className={`h-2 w-2 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />
                                 <span className="font-semibold">{c.code}</span>
-                                <span className="truncate text-xs text-slate-500">{c.title}</span>
+                                <span className="truncate text-xs text-slate-500 dark:text-slate-400">{c.title}</span>
                               </button>
                             </li>
                           ))}
                           {matches.length === 0 && (
-                            <li className="px-3 py-2 text-xs text-slate-400">No matching courses left to add</li>
+                            <li className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">No matching courses left to add</li>
                           )}
                         </ul>
-                        <button type="button" onClick={() => setPicker(null)} className="mt-1 text-xs text-slate-400 hover:text-slate-600">
+                        <button type="button" onClick={() => setPicker(null)} className="mt-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-600">
                           Cancel
                         </button>
                       </div>
@@ -341,7 +377,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                       <button
                         type="button"
                         onClick={() => setPicker({ term: semester.term, query: "" })}
-                        className="mt-3 w-full rounded-xl border border-dashed border-slate-300 py-2 text-xs font-medium text-slate-500 transition hover:border-gold hover:bg-gold/5 hover:text-berkeley"
+                        className="mt-3 w-full rounded-xl border border-dashed border-slate-300 dark:border-slate-600 py-2 text-xs font-medium text-slate-500 dark:text-slate-400 transition hover:border-gold hover:bg-gold/5 hover:text-berkeley"
                       >
                         + Add course
                       </button>

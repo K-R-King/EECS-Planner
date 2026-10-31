@@ -14,6 +14,7 @@ export interface CatalogCourse extends Course {
   terms: string[];
   design: boolean;      // satisfies the major design requirement
   upper_eecs: boolean;  // counts toward the 20 upper-division EECS units
+  options: string[];    // real choices for a placeholder slot (e.g. the natural science elective)
 }
 
 export interface ApExam {
@@ -23,6 +24,11 @@ export interface ApExam {
   units: number;
   min_score: number;  // lowest score that earns anything
   credit: { min_score: number; courses: string[] }[];  // "HSS" = one breadth course
+}
+
+export interface FocusTracks {
+  tracks: { key: string; label: string }[];
+  offerings_checked: string | null;  // when term offerings were last pulled from the EECS site
 }
 
 export interface Semester {
@@ -42,6 +48,7 @@ export interface PlanResult {
   total_units: number;
   ap_credit: string[];
   ap_units: number;
+  completed: string[];  // courses taken before Berkeley
   upper_eecs_units: number;
   warnings: string[];
   issues: Issue[];
@@ -52,6 +59,8 @@ export interface PlannerSettings {
   maxUnits: number;
   summer: boolean;
   ap: Record<string, number>;  // AP exam key -> score (3-5)
+  focus: string;               // key from /focus-tracks
+  completed: string[];         // course codes already taken (community college, dual enrollment)
 }
 
 export interface ChatMessage {
@@ -64,7 +73,7 @@ export interface AdvisorResponse {
   error: boolean;  // answer is a friendly error message (e.g. advisor busy)
   changes: string[];
   skipped: string[];
-  result: PlanResult | null;  // the edited plan, if the advisor changed anything
+  result: PlanResult | null;  // the plan with the advisor's proposed edits, if any
 }
 
 async function request<T>(path: string, body?: unknown): Promise<T> {
@@ -89,20 +98,47 @@ export function fetchApExams(): Promise<ApExam[]> {
   return request<ApExam[]>("/ap-exams");
 }
 
+export function fetchFocusTracks(): Promise<FocusTracks> {
+  return request<FocusTracks>("/focus-tracks");
+}
+
 export function generatePlan(settings: PlannerSettings): Promise<PlanResult> {
-  // incoming students have no completed courses
-  return request<PlanResult>("/generate-plan", { completed_courses: [], settings });
+  return request<PlanResult>("/generate-plan", { settings });
 }
 
 export function reviewPlan(plan: Semester[], settings: PlannerSettings): Promise<PlanResult> {
   return request<PlanResult>("/review-plan", { plan, settings });
 }
 
-export function askAdvisor(
+/** Asks the advisor, calling onText with each new piece of the answer as it's written. */
+export async function streamAdvisor(
   plan: Semester[],
   question: string,
   settings: PlannerSettings,
   history: ChatMessage[],
+  onText: (text: string) => void,
 ): Promise<AdvisorResponse> {
-  return request<AdvisorResponse>("/advisor", { plan, question, settings, history });
+  const res = await fetch(`${API_URL}/advisor/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan, question, settings, history }),
+  });
+  if (!res.ok || !res.body) throw new Error(`/advisor/stream failed: ${res.status}`);
+
+  // newline-delimited JSON: {"type": "delta", "text"} ... then {"type": "done", ...reply}
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines.filter(Boolean)) {
+      const event = JSON.parse(line);
+      if (event.type === "delta") onText(event.text);
+      else if (event.type === "done") return event as AdvisorResponse;
+    }
+  }
+  throw new Error("The advisor's reply ended early");
 }
