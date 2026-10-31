@@ -23,6 +23,7 @@ class Settings(BaseModel):
     ap: dict[str, Annotated[int, Field(ge=1, le=5)]] = {}
     focus: str = "balanced"
     completed: list[CourseCode] = Field(default=[], max_length=60)
+    picks: dict[str, Annotated[str, StringConstraints(max_length=100)]] = {}  # slot -> chosen option
 
     @field_validator("ap")
     @classmethod
@@ -38,6 +39,15 @@ class Settings(BaseModel):
         if focus not in FOCUS_TRACKS:
             raise ValueError(f"focus must be one of: {', '.join(FOCUS_TRACKS)}")
         return focus
+
+    @field_validator("picks")
+    @classmethod
+    def known_options(cls, picks):
+        for slot, label in picks.items():
+            options = COURSES.get(slot, {}).get("options", [])
+            if not any(o["label"] == label for o in options):
+                raise ValueError(f"'{label}' isn't an option for {slot}")
+        return picks
 
     @field_validator("completed")
     @classmethod

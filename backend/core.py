@@ -6,8 +6,6 @@ from backend.curriculum import (
     UPPER_EECS_UNITS,
 )
 
-UPPER_HSS_COURSES = 2
-
 FULL_TIME_UNITS = 12
 
 
@@ -26,13 +24,45 @@ def scheduling_passes(hss_per_term):
     ]
 
 
+# ---------- PREREQUISITES ----------
+# Each prerequisite is a course code, or a list of codes where any one is enough.
+
+def prereq_met(prereq, done):
+    return prereq in done if isinstance(prereq, str) else any(p in done for p in prereq)
+
+
+def prereq_label(prereq):
+    return prereq if isinstance(prereq, str) else " or ".join(prereq)
+
+
+# ---------- STUDENT CHOICES ----------
+# picks: {slot code: option label}, e.g. {"PHYS7A": "PHYSICS 5A", "ETHICS": "ENGIN 125"}
+
+def chosen_option(code, picks):
+    label = (picks or {}).get(code)
+    return next((o for o in COURSES[code].get("options", []) if o["label"] == label), None)
+
+
+def units_of(code, picks=None):
+    option = chosen_option(code, picks)
+    return option.get("units", COURSES[code]["units"]) if option else COURSES[code]["units"]
+
+
+def waived_by(picks):
+    """Slots a choice makes unnecessary: an asterisked ethics course also covers an upper-division H/SS course."""
+    ethics = chosen_option("ETHICS", picks)
+    return ["HSS4"] if ethics and ethics.get("upper_hss") else []
+
+
 # ---------- HELPERS ----------
 def can_take(course, completed, season, year):
     info = COURSES[course]
+    # electives wait until Year 2 unless they say otherwise (planner preference, not a rule)
+    min_year = info.get("min_year", 2 if info["category"] == "elective" else 1)
     return (
         season in info["terms"]
-        and year >= info.get("min_year", 1)
-        and all(p in completed for p in info["prereqs"])
+        and year >= min_year
+        and all(prereq_met(p, completed) for p in info["prereqs"])
     )
 
 
@@ -75,12 +105,13 @@ def normalize_code(code):
     return code.replace(" ", "").upper()
 
 
-def course_info(code):
+def course_info(code, picks=None):
     info = COURSES[code]
+    option = chosen_option(code, picks)
     return {
         "code": code,
-        "title": info["title"],
-        "units": info["units"],
+        "title": option["label"] if option else info["title"],
+        "units": units_of(code, picks),
         "category": info["category"],
     }
 
@@ -90,6 +121,7 @@ def catalog():
         {
             **course_info(code),
             "prereqs": info["prereqs"],
+            "prereqs_verified": info.get("prereqs_verified", False),
             "terms": info["terms"],
             "design": info.get("design", False),
             "upper_eecs": info.get("upper_eecs", False),
@@ -132,6 +164,10 @@ def parse_settings(settings):
     max_units = int(settings.get("maxUnits", 16))
     summer = bool(settings.get("summer", False))
     return timeline, max_units, summer, settings.get("ap", {})
+
+
+def picks_of(settings):
+    return (settings or {}).get("picks", {})
 
 
 def completed_courses_of(settings, extra=()):
@@ -197,19 +233,22 @@ def plan_to_schedule(plan):
 
 
 # ---------- REVIEW ----------
-def summarize(schedule, credited, ap_units, max_units, completed=()):
+def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None):
     """Turn [(term, [codes])] into the API response, checking every course along the way."""
     plan = []
     issues = []
+    waived = set(waived_by(picks))
     prior = set(credited) | set(completed)
     done = set(prior)   # finished before the current semester
     seen = set(prior)   # anywhere so far, to catch duplicates
+    regular_terms = [t for t, _ in schedule if term_season(t) != "Summer"]
+    unneeded = []
 
     for term, codes in schedule:
         season = term_season(term)
         year = term_year(term)
         codes = [c for c in codes if c in COURSES]
-        units = sum(COURSES[c]["units"] for c in codes)
+        units = sum(units_of(c, picks) for c in codes)
 
         for code in codes:
             info = COURSES[code]
@@ -222,33 +261,43 @@ def summarize(schedule, credited, ap_units, max_units, completed=()):
             elif season not in info["terms"]:
                 issues.append({"term": term, "course": code, "message": f"{code} is only offered in {' & '.join(info['terms'])}."})
             else:
-                missing = [p for p in info["prereqs"] if p not in done]
+                missing = [prereq_label(p) for p in info["prereqs"] if not prereq_met(p, done)]
                 if missing:
                     issues.append({"term": term, "course": code, "message": f"{code} needs {', '.join(missing)} first."})
                 elif "deadline_year" in info and year > info["deadline_year"]:
                     issues.append({"term": term, "course": code, "message": f"{code} must be finished by the end of Year {info['deadline_year']}."})
+            if code in waived:
+                unneeded.append(code)
             seen.add(code)
 
         if units > max_units:
             issues.append({"term": term, "course": None, "message": f"{units} units is over your {max_units}-unit limit."})
-        elif units < FULL_TIME_UNITS and season != "Summer":
+        elif units < FULL_TIME_UNITS and season != "Summer" and regular_terms and term != regular_terms[-1]:
+            # students finishing their degree may take fewer than 12 units in their final semester
             issues.append({"term": term, "course": None, "message": f"{units} units is below the {FULL_TIME_UNITS}-unit full-time minimum."})
 
         done.update(codes)
         plan.append({
             "term": term,
-            "courses": [course_info(c) for c in codes],
+            "courses": [course_info(c, picks) for c in codes],
             "units": units
         })
 
+    # taking Physics 5A means taking 5B + 5BL (Berkeley Engineering)
+    physics_a, physics_b = chosen_option("PHYS7A", picks), chosen_option("PHYS7B", picks)
+    if physics_a and physics_a["label"] == "PHYSICS 5A" and not (physics_b and physics_b["label"] == "PHYSICS 5B + 5BL"):
+        term = next((t for t, codes in schedule if "PHYS7B" in codes), None)
+        if term:
+            issues.append({"term": term, "course": "PHYS7B", "message": "Physics 5A must be followed by Physics 5B + 5BL."})
+
     # courses taken here or before Berkeley (AP gives units instead of course units)
     taken = seen - set(credited)
-    total_units = round(sum(COURSES[c]["units"] for c in taken) + ap_units, 2)
-    upper_eecs = sum(COURSES[c]["units"] for c in taken if COURSES[c].get("upper_eecs"))
+    total_units = round(sum(units_of(c, picks) for c in taken) + ap_units, 2)
+    upper_eecs = sum(units_of(c, picks) for c in taken if COURSES[c].get("upper_eecs"))
 
     warnings = []
 
-    missing = [c for c in COURSES if COURSES[c]["category"] != "elective" and c not in seen]
+    missing = [c for c in COURSES if COURSES[c]["category"] != "elective" and c not in seen and c not in waived]
     if missing:
         warnings.append(f"Required courses missing from your plan: {', '.join(missing)}.")
     if upper_eecs < UPPER_EECS_UNITS:
@@ -260,6 +309,11 @@ def summarize(schedule, credited, ap_units, max_units, completed=()):
         warnings.append(
             f"This plan reaches {total_units:g} of the {TOTAL_UNITS} units needed to graduate. "
             "Try a higher unit limit or a longer timeline."
+        )
+    for code in unneeded:
+        warnings.append(
+            f"You can drop {code}: your ethics course ({chosen_option('ETHICS', picks)['label']}) "
+            "also counts as an upper-division H/SS course."
         )
 
     return {
@@ -279,7 +333,7 @@ def review_plan(plan, settings):
     _, max_units, _, scores = parse_settings(settings)
     credited, ap_units = ap_credit(scores)
     completed = [c for c in completed_courses_of(settings) if c not in credited]
-    return summarize(plan_to_schedule(plan), credited, ap_units, max_units, completed)
+    return summarize(plan_to_schedule(plan), credited, ap_units, max_units, completed, picks_of(settings))
 
 
 def apply_changes(plan, changes, credited=(), completed=()):
@@ -326,12 +380,14 @@ def apply_changes(plan, changes, credited=(), completed=()):
 # ---------- MAIN ENGINE ----------
 def build_degree_plan(completed_courses, settings=None):
     timeline, max_units, summer, scores = parse_settings(settings)
+    picks = picks_of(settings)
     credited, ap_units = ap_credit(scores)
     prior = [c for c in completed_courses_of(settings, completed_courses) if c not in credited]
     order = course_order((settings or {}).get("focus", "balanced"))
 
-    completed = set(prior) | set(credited)
-    units_done = ap_units + sum(COURSES[c]["units"] for c in prior)
+    # waived slots count as done but add no units
+    completed = set(prior) | set(credited) | set(waived_by(picks))
+    units_done = ap_units + sum(units_of(c, picks) for c in prior)
 
     terms = build_terms(timeline, summer)
     # summers start empty; students (or the advisor) fill them by hand
@@ -366,7 +422,7 @@ def build_degree_plan(completed_courses, settings=None):
                 ):
                     continue
 
-                course_units = COURSES[course]["units"]
+                course_units = units_of(course, picks)
 
                 # a small course shouldn't leave the semester unable to reach its target with 4-unit courses
                 # (in the last semester a required course wins anyway, as long as full-time is still reachable)
@@ -390,4 +446,4 @@ def build_degree_plan(completed_courses, settings=None):
         planned[term] = semester_courses
 
     schedule = [(term, planned.get(term, [])) for term in terms]
-    return summarize(schedule, credited, ap_units, max_units, prior)
+    return summarize(schedule, credited, ap_units, max_units, prior, picks)

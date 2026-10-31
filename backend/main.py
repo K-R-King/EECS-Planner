@@ -85,19 +85,38 @@ def advisor_context(req: AdvisorRequest):
 
 def proposal(reply, plan, settings, current):
     """
-    The advisor's answer plus, if it suggested edits, the plan with them applied.
-    The edits are only a proposal: the student accepts or rejects them in the page.
+    The advisor's answer plus, if it suggested edits, the plan with them applied, and the problems
+    those edits introduce. The edits are only a proposal: the student accepts or rejects them in the page.
     """
     if not reply.changes:
-        return {"answer": reply.answer, "error": False, "changes": [], "skipped": [], "result": None}
+        return {"answer": reply.answer, "error": False, "changes": [], "skipped": [], "result": None}, []
 
     schedule, applied, skipped = apply_changes(
         plan, [c.model_dump() for c in reply.changes], current["ap_credit"], current["completed"]
     )
     proposed = review_plan([{"term": term, "courses": codes} for term, codes in schedule], settings)
+    new_problems = [i["message"] for i in proposed["issues"] if i not in current["issues"]]
+    new_problems += [w for w in proposed["warnings"] if w not in current["warnings"]]
 
-    return {"answer": reply.answer, "error": False, "changes": applied, "skipped": skipped,
-            "result": proposed if applied else None}
+    payload = {"answer": reply.answer, "error": False, "changes": applied, "skipped": skipped,
+               "result": proposed if applied else None}
+    return payload, new_problems
+
+
+def checked_proposal(reply, plan, settings, current, args):
+    """
+    If the advisor's edits break a rule, ask it once to correct them (one extra Gemini call, only
+    when needed) and keep whichever version has fewer problems.
+    """
+    payload, problems = proposal(reply, plan, settings, current)
+    if not problems:
+        return payload
+
+    retry = get_ai_advice(*args, feedback=(reply, problems))
+    if isinstance(retry, str):
+        return payload
+    retry_payload, retry_problems = proposal(retry, plan, settings, current)
+    return retry_payload if len(retry_problems) < len(problems) else payload
 
 
 def error_reply(message):
@@ -111,14 +130,15 @@ def advisor(req: AdvisorRequest, request: Request):
 
     plan, settings, current, args = advisor_context(req)
     reply = get_ai_advice(*args)
-    return error_reply(reply) if isinstance(reply, str) else proposal(reply, plan, settings, current)
+    return error_reply(reply) if isinstance(reply, str) else checked_proposal(reply, plan, settings, current, args)
 
 
 @app.post("/advisor/stream")
 def advisor_stream(req: AdvisorRequest, request: Request):
     """
     Same as /advisor, streamed as newline-delimited JSON:
-    {"type": "delta", "text": ...} while the answer is written, then {"type": "done", ...the /advisor reply}.
+    {"type": "delta", "text": ...} while the answer is written, {"type": "status", "text": ...} if the
+    advisor is correcting its edits, then {"type": "done", ...the /advisor reply}.
     """
     allowed = advisor_allowed(request)
 
@@ -134,6 +154,10 @@ def advisor_stream(req: AdvisorRequest, request: Request):
             elif kind == "error":
                 yield json.dumps({"type": "done", **error_reply(value)}) + "\n"
             else:
-                yield json.dumps({"type": "done", **proposal(value, plan, settings, current)}) + "\n"
+                payload, problems = proposal(value, plan, settings, current)
+                if problems:
+                    yield json.dumps({"type": "status", "text": "Double-checking those changes…"}) + "\n"
+                    payload = checked_proposal(value, plan, settings, current, args)
+                yield json.dumps({"type": "done", **payload}) + "\n"
 
     return StreamingResponse(events(), media_type="application/x-ndjson")

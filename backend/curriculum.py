@@ -4,7 +4,9 @@
 #   Major:  https://engineering.berkeley.edu/students/undergraduate-guide/degree-requirements/major-programs/electrical-engineering-computer-sciences/
 #   Lower division:  https://eecs.berkeley.edu/resources/undergrads/eecs-2/degree-reqs-lowerdiv-2/
 #   AP credit:  https://engineering.berkeley.edu/students/undergraduate-guide/exams/
-# Prerequisites for upper-division electives are simplified; confirm them in the course catalog.
+#   Ethics and H/SS:  https://engineering.berkeley.edu/students/undergraduate-guide/degree-requirements/humanities-and-social-sciences/
+# Term offerings and most elective prerequisites come from the EECS department's course pages
+# (backend/offerings.json, refreshed by scripts/update_offerings.py).
 #
 # Order matters: within each category, courses listed first get scheduled first.
 #
@@ -20,7 +22,9 @@
 #   deadline_year  - must be finished by the end of this year (Reading & Composition)
 #   min_year       - planner heuristic: don't auto-schedule before this year
 #   upper_hss      - an upper-division H/SS slot (2 of the 6 must be upper-division)
-#   options        - real choices for a placeholder slot
+#   options        - real choices for a placeholder slot: {"label", optional "units", optional "upper_hss"}
+#
+# prereqs: each item is a required course, or a list of courses where any one is enough.
 
 import json
 from pathlib import Path
@@ -31,23 +35,36 @@ UPPER_EECS_UNITS = 20
 BOTH = ["Fall", "Spring"]
 ALL = ["Fall", "Spring", "Summer"]  # default only; offerings.json overrides with real data
 
-# Choices for placeholder slots. The Engineering H/SS page doesn't list individual courses;
-# it accepts the L&S breadth categories below (find courses with the Class Schedule filters).
-NATSCI_OPTIONS = [
-    "CHEM 1A + 1AL (General Chemistry)", "CHEM 4A (Chemical Structure & Reactivity)",
-    "BIOLOGY 1A + 1AL (General Biology)", "BIOLOGY 1B (General Biology)",
-    "PHYSICS 7C (Physics for Scientists & Engineers)", "ASTRON 7A (Introduction to Astrophysics)",
-    "ASTRON 7B (Introduction to Astrophysics)", "MCB 32 + 32L (Human Physiology)",
-]
-HSS_OPTIONS = [
+# Choices for placeholder slots, taken from the official pages (codes only where the page gives no title).
+# Units are only listed where verified; otherwise the slot's default units apply.
+def _options(*labels):
+    return [{"label": label} for label in labels]
+
+NATSCI_OPTIONS = _options(
+    "CHEM 1A + 1AL", "CHEM 4A", "BIOLOGY 1A + 1AL", "BIOLOGY 1B",
+    "PHYSICS 7C", "ASTRON 7A", "ASTRON 7B", "MCB 32 + 32L",
+)
+# The Engineering H/SS page accepts these L&S breadth categories rather than listing courses
+# (find courses with the Class Schedule filters).
+_HSS_CATEGORIES = [
     "Historical Studies course", "Social & Behavioral Sciences course", "Arts & Literature course",
     "Philosophy & Values course", "International Studies course", "Foreign language course",
     "American Cultures course",
 ]
-UPPER_HSS_OPTIONS = [
-    "ENGIN 125 (Ethics, Engineering & Society)", "ENGIN 185 (Art of STEM Communication)",
-    "BIOENG 100 (Ethics in Science & Engineering)",
-] + [f"Upper-division {o}" for o in HSS_OPTIONS]
+HSS_OPTIONS = _options(*_HSS_CATEGORIES)
+UPPER_HSS_OPTIONS = _options("ENGIN 125", "ENGIN 185", "BIOENG 100", "PHILOS 121",
+                             *[f"Upper-division {c}" for c in _HSS_CATEGORIES])
+# Ethics courses marked * on the EECS page also satisfy an upper-division H/SS course.
+# CS 195 is 1 unit; the others' units aren't on the page (3 is assumed, check the catalog).
+ETHICS_OPTIONS = [
+    {"label": "COMPSCI 195", "units": 1},
+    {"label": "ENGIN 125", "units": 3, "upper_hss": True},
+    {"label": "ENGIN 185", "units": 3, "upper_hss": True},
+    {"label": "PHILOS 121", "units": 3, "upper_hss": True},
+    {"label": "DATA C104", "units": 3, "upper_hss": True},
+]
+PHYSICS_A_OPTIONS = [{"label": "PHYSICS 7A", "units": 4}, {"label": "PHYSICS 5A", "units": 3}]
+PHYSICS_B_OPTIONS = [{"label": "PHYSICS 7B", "units": 4}, {"label": "PHYSICS 5B + 5BL", "units": 5}]
 
 COURSES = {
     # ---------- CORE (lower division) ----------
@@ -58,10 +75,10 @@ COURSES = {
     "CS61B":   {"title": "Data Structures",                    "units": 4, "prereqs": ["CS61A"],              "terms": ALL,  "category": "core"},
     "MATH54":  {"title": "Linear Algebra & Differential Equations", "units": 4, "prereqs": ["MATH52"],       "terms": ALL,  "category": "core"},
     "CS61C":   {"title": "Machine Structures",                 "units": 4, "prereqs": ["CS61B"],              "terms": ALL,  "category": "core"},
-    "PHYS7A":  {"title": "Physics: Mechanics",                 "units": 4, "prereqs": ["MATH51"],             "terms": ALL,  "category": "core"},
+    "PHYS7A":  {"title": "Physics: Mechanics",                 "units": 4, "prereqs": ["MATH51"],             "terms": ALL,  "category": "core", "options": PHYSICS_A_OPTIONS},
     "MATH53":  {"title": "Multivariable Calculus",             "units": 4, "prereqs": ["MATH52"],             "terms": ALL,  "category": "core"},
     "CS70":    {"title": "Discrete Math & Probability",        "units": 4, "prereqs": ["CS61A"],              "terms": ALL,  "category": "core"},
-    "PHYS7B":  {"title": "Physics: Heat, Electricity & Magnetism", "units": 4, "prereqs": ["PHYS7A", "MATH52"], "terms": ALL, "category": "core"},
+    "PHYS7B":  {"title": "Physics: Heat, Electricity & Magnetism", "units": 4, "prereqs": ["PHYS7A", "MATH52"], "terms": ALL, "category": "core", "options": PHYSICS_B_OPTIONS},
     # Math 54 must come first (EECS department)
     "ELENG66": {"title": "Signals, Systems & Information (formerly EECS 16A)", "units": 4, "prereqs": ["MATH54"], "terms": BOTH, "category": "core"},
     "ELENG64": {"title": "Circuits & Devices (formerly EECS 16B)", "units": 4, "prereqs": ["MATH54"],         "terms": BOTH, "category": "core"},
@@ -75,7 +92,8 @@ COURSES = {
     "HSS4": {"title": "Upper-Division H/SS Breadth",        "units": 4, "prereqs": [],      "terms": ALL, "category": "hss", "min_year": 2, "upper_hss": True, "options": UPPER_HSS_OPTIONS},
 
     # ---------- ETHICS ----------
-    "CS195": {"title": "Social Implications of Computer Technology", "units": 1, "prereqs": [], "terms": BOTH, "category": "ethics", "min_year": 2},
+    # defaults to CS 195; an asterisked choice also covers the HSS4 upper-division slot
+    "ETHICS": {"title": "Engineering Ethics (e.g. CS 195)", "units": 1, "prereqs": [], "terms": BOTH, "category": "ethics", "min_year": 2, "options": ETHICS_OPTIONS},
 
     # ---------- UPPER-DIVISION TECHNICAL ELECTIVES ----------
     "CS170":    {"title": "Efficient Algorithms",                 "units": 4, "prereqs": ["CS61B", "CS70"],            "terms": BOTH, "category": "elective", "upper_eecs": True},
@@ -189,6 +207,9 @@ OFFERINGS_CHECKED = _offerings["checked"]
 for _code, _offering in _offerings["courses"].items():
     if _code in COURSES:
         COURSES[_code]["terms"] = _offering["terms"]
+        if "prereqs" in _offering:
+            COURSES[_code]["prereqs"] = _offering["prereqs"]
+            COURSES[_code]["prereqs_verified"] = True
 
 
 # ---------- INTEREST TRACKS ----------

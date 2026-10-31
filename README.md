@@ -67,7 +67,15 @@ The backend tests build a plan for every combination of timeline, unit limit, AP
 python scripts/update_offerings.py
 ```
 
-Re-reads each course's Fall/Spring/Summer formats from the EECS department's course pages into `backend/offerings.json`. Run it once a year.
+Re-reads each course's Fall/Spring/Summer formats, actual scheduled terms, and official prerequisites from the EECS department's course pages into `backend/offerings.json`. Run it once a year, and check its printout: prerequisites written as prose need an entry in `MANUAL_PREREQS`.
+
+## Measuring the AI advisor
+
+```bash
+python scripts/eval_advisor.py
+```
+
+Sends 10 typical requests ("make Year 2 lighter", "add CS 182 somewhere", …) to the real advisor and scores whether its suggested edits break any rule, before and after its automatic correction step. It uses your Gemini key (10–20 requests) and is paced for Gemini's free tier, which allows 5 requests per minute.
 
 ## Deploying
 
@@ -111,4 +119,4 @@ Course data lives in `backend/curriculum.py`, based on:
 - [Berkeley Engineering: H/SS requirement](https://engineering.berkeley.edu/students/undergraduate-guide/degree-requirements/humanities-and-social-sciences/)
 - [EECS department course pages](https://www2.eecs.berkeley.edu/Courses/) for term offerings (`backend/offerings.json`)
 
-Upper-division prerequisites are simplified. The H/SS page lists accepted categories rather than individual courses, so the H/SS slots offer categories; confirm specific courses with the Class Schedule. This is an unofficial planning tool, so always confirm with an EECS advisor.
+Prerequisites for courses without an EECS course page (CS 191, EECS 106A, Data 100) are estimates and are marked as such in the course catalog. The H/SS page lists accepted categories rather than individual courses, so the H/SS slots offer categories; confirm specific courses with the Class Schedule. Units for ENGIN 125, ENGIN 185, PHILOS 121 and DATA C104 aren't on the EECS page and are assumed to be 3. This is an unofficial planning tool, so always confirm with an EECS advisor.

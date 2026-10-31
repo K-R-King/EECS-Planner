@@ -17,6 +17,14 @@ def no_waiting(monkeypatch):
     main._advisor_calls.clear()
 
 
+@pytest.fixture(autouse=True)
+def no_real_gemini(monkeypatch):
+    def unexpected(**_):
+        raise AssertionError("a test tried to call the real Gemini API")
+    monkeypatch.setattr(ai.client.models, "generate_content", unexpected)
+    monkeypatch.setattr(ai.client.models, "generate_content_stream", unexpected)
+
+
 def fake_gemini(monkeypatch, *outcomes):
     """Each call to Gemini returns (or raises) the next outcome."""
     calls = iter(outcomes)
@@ -43,6 +51,21 @@ def ask(question="make it easier"):
     return client.post("/advisor", json={"plan": plan(), "question": question, "settings": SETTINGS}).json()
 
 
+def valid_move(code="CS188"):
+    """A semester `code` can move to without breaking any rule (so the advisor won't try to repair it)."""
+    current = plan()
+    review = client.post("/review-plan", json={"plan": current, "settings": SETTINGS}).json()
+    for target in current:
+        if code in [c["code"] for c in target["courses"]]:
+            continue
+        moved = [{"term": s["term"], "courses": [c["code"] for c in s["courses"] if c["code"] != code]
+                  + ([code] if s["term"] == target["term"] else [])} for s in current]
+        checked = client.post("/review-plan", json={"plan": moved, "settings": SETTINGS}).json()
+        if checked["issues"] == review["issues"] and checked["warnings"] == review["warnings"]:
+            return target["term"]
+    raise AssertionError(f"no valid place to move {code}")
+
+
 def test_catalog_and_ap_exams():
     courses = client.get("/courses").json()
     assert {"MATH51", "CS61A", "ELENG66", "CS162"} <= {c["code"] for c in courses}
@@ -52,15 +75,36 @@ def test_catalog_and_ap_exams():
 
 
 def test_advisor_applies_changes(monkeypatch):
+    target = valid_move()
     fake_gemini(monkeypatch, AdvisorReply(
-        answer="Moved CS 188 later.",
-        changes=[PlanChange(action="move", course="CS188", to_term="Year 4 Fall")],
+        answer="Moved CS 188.",
+        changes=[PlanChange(action="move", course="CS188", to_term=target)],
     ))
     reply = ask()
     assert reply["error"] is False
-    assert reply["changes"] == ["Moved CS188 → Year 4 Fall"]
-    year4_fall = next(s for s in reply["result"]["plan"] if s["term"] == "Year 4 Fall")
-    assert "CS188" in [c["code"] for c in year4_fall["courses"]]
+    assert reply["changes"] == [f"Moved CS188 → {target}"]
+    moved_to = next(s for s in reply["result"]["plan"] if s["term"] == target)
+    assert "CS188" in [c["code"] for c in moved_to["courses"]]
+
+
+def test_advisor_corrects_edits_that_break_rules(monkeypatch):
+    target = valid_move()
+    fake_gemini(
+        monkeypatch,
+        # first try: CS 189 in Year 1 Fall breaks prerequisites and the unit limit
+        AdvisorReply(answer="first try", changes=[PlanChange(action="move", course="CS189", to_term="Year 1 Fall")]),
+        AdvisorReply(answer="corrected", changes=[PlanChange(action="move", course="CS188", to_term=target)]),
+    )
+    reply = ask()
+    assert reply["answer"] == "corrected"
+    assert reply["changes"] == [f"Moved CS188 → {target}"]
+
+
+def test_advisor_keeps_the_first_try_if_the_correction_is_no_better(monkeypatch):
+    bad = AdvisorReply(answer="first try", changes=[PlanChange(action="move", course="CS189", to_term="Year 1 Fall")])
+    fake_gemini(monkeypatch, bad, AdvisorReply(answer="worse", changes=bad.changes + [
+        PlanChange(action="move", course="CS162", to_term="Year 1 Fall")]))
+    assert ask()["answer"] == "first try"
 
 
 def test_advisor_question_without_changes(monkeypatch):
@@ -154,14 +198,25 @@ def stream(question="make it easier"):
 
 
 def test_stream_sends_answer_pieces_then_the_proposal(monkeypatch):
+    target = valid_move()
     fake_stream(monkeypatch, '{"answer": "Moving ', 'CS 188 later.", "changes": [',
-                '{"action": "move", "course": "CS188", "to_term": "Year 4 Fall"}]}')
+                f'{{"action": "move", "course": "CS188", "to_term": "{target}"}}]}}')
     events = stream()
     deltas = "".join(e["text"] for e in events if e["type"] == "delta")
     done = events[-1]
     assert deltas == "Moving CS 188 later."
-    assert done["type"] == "done" and done["changes"] == ["Moved CS188 → Year 4 Fall"]
+    assert done["type"] == "done" and done["changes"] == [f"Moved CS188 → {target}"]
     assert done["result"] is not None
+    assert not any(e["type"] == "status" for e in events)
+
+
+def test_stream_says_when_it_is_double_checking(monkeypatch):
+    target = valid_move()
+    fake_stream(monkeypatch, '{"answer": "first try", "changes": [{"action": "move", "course": "CS189", "to_term": "Year 1 Fall"}]}')
+    fake_gemini(monkeypatch, AdvisorReply(answer="corrected", changes=[PlanChange(action="move", course="CS188", to_term=target)]))
+    events = stream()
+    assert {"type": "status", "text": "Double-checking those changes…"} in events
+    assert events[-1]["answer"] == "corrected"
 
 
 def test_stream_retries_then_reports_friendly_error(monkeypatch):

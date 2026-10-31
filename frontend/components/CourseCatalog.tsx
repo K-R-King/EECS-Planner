@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CatalogCourse, Category, PlanResult } from "@/lib/api";
+import { prereqText, type CatalogCourse, type Category, type PlanResult } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -76,7 +76,9 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
                 e.dataTransfer.setData(DRAG_TYPE, c.code);
                 e.dataTransfer.effectAllowed = "move";
               }}
-              title={c.prereqs.length ? `Prerequisites: ${c.prereqs.join(", ")}` : "No prerequisites"}
+              title={c.prereqs.length
+                ? `Prerequisites: ${prereqText(c.prereqs)}${c.prereqs_verified ? "" : " (estimated)"}`
+                : "No prerequisites"}
               className="flex cursor-grab items-center gap-2.5 rounded-lg border border-slate-100 dark:border-slate-800 px-2.5 py-2 transition hover:border-gold hover:bg-gold/5 active:cursor-grabbing"
             >
               <span className={`h-7 w-1 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />

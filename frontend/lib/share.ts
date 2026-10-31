@@ -7,15 +7,13 @@ export interface SavedState {
   settings: PlannerSettings;
   result: PlanResult | null;
   edited: boolean;  // the student changed the generated plan by hand
-  picks: Picks;
+  picks?: Record<string, string>;  // older saves kept slot choices here; now they live in settings.picks
 }
-
-/** Placeholder slot -> the real course the student picked, e.g. { NATSCI: "CHEM 1A + 1AL (...)" } */
-export type Picks = Record<string, string>;
 
 // ---------- share links: settings + course codes, base64 in the URL hash ----------
 
-type SharedPlan = { s: PlannerSettings; p: [string, string[]][]; k?: Picks };
+// k: slot choices from older links (now inside s.picks)
+type SharedPlan = { s: PlannerSettings; p: [string, string[]][]; k?: Record<string, string> };
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text);
@@ -27,13 +25,13 @@ function fromBase64Url(encoded: string): string {
   return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
 }
 
-export function shareLink(settings: PlannerSettings, plan: Semester[], picks: Picks): string {
-  const shared: SharedPlan = { s: settings, p: plan.map((s) => [s.term, s.courses.map((c) => c.code)]), k: picks };
+export function shareLink(settings: PlannerSettings, plan: Semester[]): string {
+  const shared: SharedPlan = { s: settings, p: plan.map((s) => [s.term, s.courses.map((c) => c.code)]) };
   return `${window.location.origin}${window.location.pathname}${HASH_PREFIX}${toBase64Url(JSON.stringify(shared))}`;
 }
 
 /** Reads a shared plan from the URL, if there is one. Courses only carry codes; the backend fills in the rest. */
-export function readShareLink(): { settings: PlannerSettings; plan: Semester[]; picks: Picks } | null {
+export function readShareLink(): { settings: PlannerSettings; plan: Semester[] } | null {
   if (!window.location.hash.startsWith(HASH_PREFIX)) return null;
   try {
     const shared: SharedPlan = JSON.parse(fromBase64Url(window.location.hash.slice(HASH_PREFIX.length)));
@@ -42,7 +40,7 @@ export function readShareLink(): { settings: PlannerSettings; plan: Semester[]; 
       courses: codes.map((code) => ({ code })) as Semester["courses"],
       units: 0,
     }));
-    return { settings: shared.s, plan, picks: shared.k ?? {} };
+    return { settings: { ...shared.s, picks: { ...shared.k, ...shared.s.picks } }, plan };
   } catch {
     return null;
   }

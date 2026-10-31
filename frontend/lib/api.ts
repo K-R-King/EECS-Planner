@@ -9,12 +9,30 @@ export interface Course {
   category: Category;
 }
 
+/** A required course, or a list of courses where any one is enough. */
+export type Prereq = string | string[];
+
+export interface SlotOption {
+  label: string;
+  units?: number;       // when the choice changes the slot's units
+  upper_hss?: boolean;  // also counts as an upper-division H/SS course
+}
+
 export interface CatalogCourse extends Course {
-  prereqs: string[];
+  prereqs: Prereq[];
+  prereqs_verified: boolean;  // taken from the EECS course page, not estimated
   terms: string[];
   design: boolean;      // satisfies the major design requirement
   upper_eecs: boolean;  // counts toward the 20 upper-division EECS units
-  options: string[];    // real choices for a placeholder slot (e.g. the natural science elective)
+  options: SlotOption[];  // real choices for a placeholder slot (e.g. the natural science elective)
+}
+
+export function prereqCodes(prereqs: Prereq[]): string[] {
+  return prereqs.flat();
+}
+
+export function prereqText(prereqs: Prereq[]): string {
+  return prereqs.map((p) => (Array.isArray(p) ? p.join(" or ") : p)).join(", ");
 }
 
 export interface ApExam {
@@ -61,6 +79,7 @@ export interface PlannerSettings {
   ap: Record<string, number>;  // AP exam key -> score (3-5)
   focus: string;               // key from /focus-tracks
   completed: string[];         // course codes already taken (community college, dual enrollment)
+  picks: Record<string, string>;  // placeholder slot -> chosen option label, e.g. { PHYS7A: "PHYSICS 5A" }
 }
 
 export interface ChatMessage {
@@ -110,13 +129,17 @@ export function reviewPlan(plan: Semester[], settings: PlannerSettings): Promise
   return request<PlanResult>("/review-plan", { plan, settings });
 }
 
-/** Asks the advisor, calling onText with each new piece of the answer as it's written. */
+/**
+ * Asks the advisor, calling onText with each new piece of the answer as it's written,
+ * and onStatus when it's doing something else (e.g. correcting edits that broke a rule).
+ */
 export async function streamAdvisor(
   plan: Semester[],
   question: string,
   settings: PlannerSettings,
   history: ChatMessage[],
   onText: (text: string) => void,
+  onStatus: (status: string) => void = () => {},
 ): Promise<AdvisorResponse> {
   const res = await fetch(`${API_URL}/advisor/stream`, {
     method: "POST",
@@ -125,7 +148,7 @@ export async function streamAdvisor(
   });
   if (!res.ok || !res.body) throw new Error(`/advisor/stream failed: ${res.status}`);
 
-  // newline-delimited JSON: {"type": "delta", "text"} ... then {"type": "done", ...reply}
+  // newline-delimited JSON: {"type": "delta" | "status", "text"} ... then {"type": "done", ...reply}
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
   for (;;) {
@@ -137,6 +160,7 @@ export async function streamAdvisor(
     for (const line of lines.filter(Boolean)) {
       const event = JSON.parse(line);
       if (event.type === "delta") onText(event.text);
+      else if (event.type === "status") onStatus(event.text);
       else if (event.type === "done") return event as AdvisorResponse;
     }
   }

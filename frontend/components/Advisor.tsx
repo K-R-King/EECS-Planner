@@ -58,10 +58,16 @@ export default function Advisor({ plan, settings, onAccept, onUndo }: Props) {
 
     try {
       let streamed = "";
-      const reply = await streamAdvisor(plan, text, settings, history, (piece) => {
-        streamed += piece;
-        updateLast({ text: streamed });
-      });
+      const reply = await streamAdvisor(
+        plan, text, settings, history,
+        (piece) => {
+          streamed += piece;
+          updateLast({ text: streamed });
+        },
+        (status) => updateLast({ text: `${streamed}
+
+⏳ ${status}` }),
+      );
       updateLast(
         reply.error
           ? { text: reply.answer, retry: text }
@@ -91,6 +97,7 @@ export default function Advisor({ plan, settings, onAccept, onUndo }: Props) {
           <div>
             <h2 className="text-lg font-bold">AI Academic Advisor</h2>
             <p className="text-xs text-blue-100">Ask a question, or ask it to change your plan. You approve every change.</p>
+            <p className="mt-0.5 text-[11px] text-blue-200/80">Your question and plan are sent to Google Gemini to answer.</p>
           </div>
         </div>
       </div>

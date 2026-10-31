@@ -242,5 +242,63 @@ def test_ap_never_fills_upper_division_hss():
 
 
 def test_placeholder_slots_offer_real_choices():
-    assert any("CHEM 1A" in o for o in COURSES["NATSCI"]["options"])
-    assert any("ENGIN 125" in o for o in COURSES["HSS3"]["options"])
+    assert any("CHEM 1A" in o["label"] for o in COURSES["NATSCI"]["options"])
+    assert any("ENGIN 125" in o["label"] for o in COURSES["HSS3"]["options"])
+
+
+# ---------- real prerequisites and choices ----------
+
+def test_prereqs_come_from_the_eecs_pages():
+    assert COURSES["CS162"]["prereqs_verified"]
+    assert "CS70" in COURSES["CS162"]["prereqs"]          # the guess before was 61B + 61C only
+    assert "CS162" in COURSES["CS168"]["prereqs"]
+
+
+def test_either_or_prerequisites():
+    from backend.core import prereq_met, prereq_label
+    assert prereq_met(["CS70", "MATH55"], {"CS70"})
+    assert not prereq_met(["CS70", "MATH55"], {"CS61A"})
+    assert prereq_label(["CS70", "MATH55"]) == "CS70 or MATH55"
+
+
+def test_electives_wait_until_year_two():
+    for settings in ALL_SETTINGS:
+        result = build_degree_plan([], settings)
+        year1 = [c for s in result["plan"] if s["term"].startswith("Year 1") for c in codes(s)]
+        assert not any(COURSES[c]["category"] == "elective" for c in year1), settings
+
+
+def test_choices_change_units():
+    settings = {**SETTINGS, "picks": {"PHYS7A": "PHYSICS 5A", "PHYS7B": "PHYSICS 5B + 5BL"}}
+    result = build_degree_plan([], settings)
+    units = {c["code"]: c["units"] for s in result["plan"] for c in s["courses"]}
+    titles = {c["code"]: c["title"] for s in result["plan"] for c in s["courses"]}
+    assert units["PHYS7A"] == 3 and units["PHYS7B"] == 5
+    assert titles["PHYS7A"] == "PHYSICS 5A"
+    assert result["issues"] == []
+
+
+def test_physics_5a_needs_5b():
+    settings = {**SETTINGS, "picks": {"PHYS7A": "PHYSICS 5A"}}
+    assert "Physics 5A must be followed by Physics 5B + 5BL." in messages(build_degree_plan([], settings))
+
+
+def test_asterisked_ethics_course_covers_an_upper_division_hss():
+    settings = {**SETTINGS, "picks": {"ETHICS": "ENGIN 125"}}
+    result = build_degree_plan([], settings)
+    planned = {c for s in result["plan"] for c in codes(s)}
+    assert "HSS4" not in planned
+    assert result["warnings"] == [] and result["issues"] == []
+
+    # picking it after HSS4 is already planned suggests dropping HSS4
+    plan = build_degree_plan([], SETTINGS)["plan"]
+    warnings = review_plan(plan, settings)["warnings"]
+    assert any("You can drop HSS4" in w for w in warnings)
+
+
+def test_final_semester_may_be_light():
+    plan, _, _ = edited(build_degree_plan([], SETTINGS), [
+        {"action": "remove", "course": c} for c in codes(build_degree_plan([], SETTINGS)["plan"][-1])[1:]
+    ])
+    assert not any("Year 4 Spring" == i["term"] and "full-time minimum" in i["message"]
+                   for i in review_plan(plan, SETTINGS)["issues"])

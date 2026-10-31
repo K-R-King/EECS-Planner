@@ -65,12 +65,26 @@ class AdvisorReply(BaseModel):
     changes: list[PlanChange]
 
 
-def build_prompt(plan, question, settings, issues, history, already_done):
+def build_prompt(plan, question, settings, issues, history, already_done, feedback=None):
     schedule = {term: codes for term, codes in plan_to_schedule(plan)}
     past = "\n".join(f"{m['role']}: {m['text']}" for m in history[-6:]) or "(none)"
     focus = FOCUS_TRACKS.get(settings.get("focus", "balanced"), FOCUS_TRACKS["balanced"])["label"]
+    picks = settings.get("picks") or {}
+
+    retry = ""
+    if feedback:
+        earlier, problems = feedback
+        retry = f"""
+
+IMPORTANT: your previous answer proposed these changes:
+{json.dumps([c.model_dump() for c in earlier.changes])}
+Applied to the current plan, they caused these problems:
+{json.dumps(problems)}
+Give a corrected answer. Its changes (applied to the current plan above, not on top of your previous
+changes) must not cause any of these problems."""
 
     return f"""Student settings: max {settings.get('maxUnits', 16)} units per semester. Focus: {focus}.
+Student's choices for placeholder slots (these change units): {json.dumps(picks) if picks else "(none)"}
 
 Already done through AP credit or courses taken before Berkeley (count these as completed before Year 1;
 never add them to the plan):
@@ -89,7 +103,7 @@ Earlier conversation:
 {past}
 
 Student question:
-{question}"""
+{question}{retry}"""
 
 
 RETRY_DELAYS = [1, 3]  # seconds to wait before retrying when Gemini is overloaded
@@ -129,13 +143,16 @@ def friendly_error(e):
     return GENERIC_MESSAGE, False
 
 
-def get_ai_advice(plan, question, settings, issues, history, already_done):
-    """Returns an AdvisorReply, or a friendly error message string."""
+def get_ai_advice(plan, question, settings, issues, history, already_done, feedback=None):
+    """
+    Returns an AdvisorReply, or a friendly error message string.
+    feedback: (earlier reply, problems its changes caused), to ask for a corrected answer.
+    """
     for attempt in range(len(RETRY_DELAYS) + 1):
         try:
             response = client.models.generate_content(
                 model=MODEL,
-                contents=build_prompt(plan, question, settings, issues, history, already_done),
+                contents=build_prompt(plan, question, settings, issues, history, already_done, feedback),
                 config=gemini_config(),
             )
 

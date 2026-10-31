@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CatalogCourse, PlanResult, Semester } from "@/lib/api";
+import { prereqCodes, type CatalogCourse, type PlanResult, type Semester } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -60,8 +60,8 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
   const planned = new Set([...ap_credit, ...(result.completed ?? []), ...plan.flatMap((s) => s.courses.map((c) => c.code))]);
   const byCode = new Map(catalog.map((c) => [c.code, c]));
   const hasDesign = plan.some((s) => s.courses.some((c) => byCode.get(c.code)?.design));
-  const needs = new Set(hovered ? byCode.get(hovered)?.prereqs ?? [] : []);
-  const unlocks = new Set(hovered ? catalog.filter((c) => c.prereqs.includes(hovered)).map((c) => c.code) : []);
+  const needs = new Set(hovered ? prereqCodes(byCode.get(hovered)?.prereqs ?? []) : []);
+  const unlocks = new Set(hovered ? catalog.filter((c) => prereqCodes(c.prereqs).includes(hovered)).map((c) => c.code) : []);
 
   function move(code: string, toTerm: string | null) {
     onEdit(placeCourse(plan, catalog, code, toTerm));
@@ -294,14 +294,18 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                                 className="w-full max-w-full truncate rounded bg-transparent text-xs text-slate-500 dark:text-slate-400 outline-none hover:text-berkeley print:appearance-none"
                               >
                                 <option value="">{course.title}: choose a course…</option>
-                                {options.map((o) => <option key={o} value={o}>{o}</option>)}
+                                {options.map((o) => (
+                                  <option key={o.label} value={o.label}>
+                                    {o.label}{o.units !== undefined && ` (${o.units}u)`}{o.upper_hss && " · also upper-div H/SS"}
+                                  </option>
+                                ))}
                               </select>
                             ) : (
                               <p className="truncate text-xs text-slate-500 dark:text-slate-400">{course.title}</p>
                             )}
                           </div>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.chip}`}>
-                            {course.units}u
+                            {style.short} {course.units}u
                           </span>
 
                           {/* Move to... (works on phones, where dragging doesn't) */}

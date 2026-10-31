@@ -7,6 +7,8 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [],
+      "prereq_text": "MATH 1A (may be taken concurrently); programming experience equivalent to that gained from a score of 3 or above on the Advanced Placement Computer Science A exam.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61A/"
     },
     "CS61B": {
@@ -15,6 +17,10 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61A"
+      ],
+      "prereq_text": "COMPSCI 61A, COMPSCI 88, or ENGIN 7.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61B/"
     },
     "CS61C": {
@@ -23,6 +29,11 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61A",
+        "CS61B"
+      ],
+      "prereq_text": "COMPSCI 61A, along with either COMPSCI 61B or COMPSCI 61BL, or programming experience equivalent to that gained in COMPSCI 9C, COMPSCI 9F, or COMPSCI 9G.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61C/"
     },
     "CS70": {
@@ -31,14 +42,11 @@
         "Spring",
         "Summer"
       ],
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI70/"
-    },
-    "CS195": {
-      "terms": [
-        "Fall",
-        "Spring"
+      "prereqs": [
+        "CS61A"
       ],
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI195/"
+      "prereq_text": "Sophomore mathematical maturity, and programming experience equivalent to that gained with a score of 3 or above on the Advanced Placement Computer Science A exam.",
+      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI70/"
     },
     "CS170": {
       "terms": [
@@ -46,6 +54,11 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61B",
+        "CS70"
+      ],
+      "prereq_text": "COMPSCI 61B and COMPSCI 70.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI170/"
     },
     "CS188": {
@@ -54,6 +67,12 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61A",
+        "CS61B",
+        "CS70"
+      ],
+      "prereq_text": "COMPSCI 61A, COMPSCI 61B, and COMPSCI 70.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI188/"
     },
     "CS162": {
@@ -62,6 +81,12 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61B",
+        "CS61C",
+        "CS70"
+      ],
+      "prereq_text": "COMPSCI 61B, COMPSCI 61C, and COMPSCI 70.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI162/"
     },
     "CS189": {
@@ -70,6 +95,12 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "MATH53",
+        "MATH54",
+        "CS70"
+      ],
+      "prereq_text": "MATH 53 and MATH 54; and COMPSCI 70 or consent of instructor.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI189/"
     },
     "CS161": {
@@ -78,6 +109,11 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61C",
+        "CS70"
+      ],
+      "prereq_text": "COMPSCI 61C; and COMPSCI 70 or MATH 55.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI161/"
     },
     "CS186": {
@@ -85,6 +121,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS61B",
+        "CS61C"
+      ],
+      "prereq_text": "COMPSCI 61B and COMPSCI 61C.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI186/"
     },
     "EECS127": {
@@ -92,6 +133,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "ELENG66",
+        "ELENG64"
+      ],
+      "prereq_text": "ELENG 66 and ELENG 64, or consent of instructor.",
       "source": "https://www2.eecs.berkeley.edu/Courses/EECS127/"
     },
     "CS164": {
@@ -99,6 +145,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS61B",
+        "CS61C"
+      ],
+      "prereq_text": "COMPSCI 61B and COMPSCI 61C.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI164/"
     },
     "CS168": {
@@ -107,6 +158,11 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61B",
+        "CS162"
+      ],
+      "prereq_text": "COMPSCI 61B and COMPSCI 162.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI168/"
     },
     "CS169A": {
@@ -115,6 +171,11 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61A",
+        "CS61B"
+      ],
+      "prereq_text": "COMPSCI 61A and COMPSCI 61B; COMPSCI 70 is recommended.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI169A/"
     },
     "EECS126": {
@@ -122,12 +183,20 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [],
+      "prereq_text": "COMPSCI 70 preferred but not required; Familiarity with linear algebra.",
       "source": "https://www2.eecs.berkeley.edu/Courses/EECS126/"
     },
     "EECS151": {
       "terms": [
-        "Fall"
+        "Fall",
+        "Spring"
       ],
+      "prereqs": [
+        "ELENG66",
+        "ELENG64"
+      ],
+      "prereq_text": "ELENG 66 and ELENG 64.",
       "source": "https://www2.eecs.berkeley.edu/Courses/EECS151/"
     },
     "ELENG120": {
@@ -135,6 +204,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "ELENG66",
+        "ELENG64"
+      ],
+      "prereq_text": "EECS 16A and EECS 16B.",
       "source": "https://www2.eecs.berkeley.edu/Courses/ELENG120/"
     },
     "CS184": {
@@ -143,6 +217,10 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61B"
+      ],
+      "prereq_text": "COMPSCI 61B or COMPSCI 61BL; programming skills in C, C++, or Java; linear algebra and calculus.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI184/"
     },
     "CS160": {
@@ -151,6 +229,10 @@
         "Spring",
         "Summer"
       ],
+      "prereqs": [
+        "CS61B"
+      ],
+      "prereq_text": "COMPSCI 61B or COMPSCI 61BL.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI160/"
     },
     "CS152": {
@@ -158,6 +240,10 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS61C"
+      ],
+      "prereq_text": "COMPSCI 61C",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI152/"
     },
     "CS172": {
@@ -165,6 +251,10 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS170"
+      ],
+      "prereq_text": "COMPSCI 170",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI172/"
     },
     "CS174": {
@@ -172,6 +262,10 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS170"
+      ],
+      "prereq_text": "COMPSCI 170",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI174/"
     },
     "CS176": {
@@ -179,6 +273,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "CS70",
+        "CS170"
+      ],
+      "prereq_text": "COMPSCI 70 and COMPSCI 170; experience programming in a language such as C, C++, Java, or Python.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI176/"
     },
     "CS182": {
@@ -186,12 +285,26 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "MATH53",
+        "MATH54",
+        "CS61B",
+        "CS70"
+      ],
+      "prereq_text": "MATH 53, MATH 54, and COMPSCI 61B; COMPSCI 70 or STAT 134; COMPSCI 189 is recommended.",
       "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI182/"
     },
     "EECS149": {
       "terms": [
         "Fall"
       ],
+      "prereqs": [
+        "CS61C",
+        "CS70",
+        "ELENG66",
+        "ELENG64"
+      ],
+      "prereq_text": "COMPSCI 61C and COMPSCI 70; ELENG 66 and ELENG 64, or permission of instructor.",
       "source": "https://www2.eecs.berkeley.edu/Courses/EECS149/"
     },
     "ELENG105": {
@@ -199,6 +312,11 @@
         "Fall",
         "Spring"
       ],
+      "prereqs": [
+        "ELENG66",
+        "ELENG64"
+      ],
+      "prereq_text": "EECS 16A and EECS 16B.",
       "source": "https://www2.eecs.berkeley.edu/Courses/ELENG105/"
     }
   }
