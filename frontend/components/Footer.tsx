@@ -6,7 +6,7 @@ const STEPS = [
 
 export default function Footer() {
   return (
-    <footer className="relative mt-24 overflow-hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pt-16 pb-10 text-white">
+    <footer className="relative mt-24 overflow-hidden print:hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pt-16 pb-10 text-white">
       <div className="hero-grid pointer-events-none absolute inset-0" />
       <div className="pointer-events-none absolute -bottom-24 left-1/3 h-72 w-72 animate-aurora rounded-full bg-gold/20 blur-3xl" />
 

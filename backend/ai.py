@@ -31,12 +31,16 @@ You can edit the student's plan directly:
 Rules for changes:
 - action is "move", "add", or "remove". Use course codes exactly as in the catalog (e.g. "CS70").
 - to_term must be one of the plan's semesters, exactly as written (e.g. "Year 2 Fall").
-  The plan only has Fall and Spring semesters, no summer.
+  Only use summer sessions if the plan already has them (e.g. "Year 1 Summer");
+  summers have no 12-unit minimum.
 - A course must come after all of its prerequisites, only in a term it's offered,
   and every semester must stay at or under the student's unit limit.
 - Never remove a required course (category core, hss, or ethics); move it instead.
 - Courses covered by AP credit are already done. Don't add them, and don't say they're missing.
-- Every semester must have at least 12 units (the full-time minimum). To lighten a
+- Reading & Composition A must be done by the end of Year 1 and B by the end of Year 2.
+- Keep at least 20 units of upper-division EECS courses and at least one design course
+  (catalog field design=true).
+- Every Fall/Spring semester must have at least 12 units (the full-time minimum). To lighten a
   semester, swap a demanding course for a lighter one (e.g. a breadth course) instead
   of just removing units.
 

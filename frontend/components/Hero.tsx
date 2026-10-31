@@ -1,15 +1,13 @@
-import { AP_EXAM_COUNT } from "@/lib/apExams";
-
 const FLOATING_COURSES = [
   { code: "CS 61A", className: "left-[6%] top-[22%] -rotate-6 animate-float" },
   { code: "CS 70", className: "left-[14%] bottom-[18%] rotate-3 animate-float-slow" },
-  { code: "EECS 16A", className: "right-[8%] top-[18%] rotate-6 animate-float-slow" },
+  { code: "ELENG 66", className: "right-[8%] top-[18%] rotate-6 animate-float-slow" },
   { code: "CS 189", className: "right-[4%] bottom-[24%] -rotate-3 animate-float" },
 ];
 
 const PREVIEW_YEARS = [
-  { year: "Year 1", courses: ["CS 61A", "Math 1A", "EECS 16A"] },
-  { year: "Year 2", courses: ["CS 61C", "Math 54", "CS 170"] },
+  { year: "Year 1", courses: ["CS 61A", "Math 51", "R&C A"] },
+  { year: "Year 2", courses: ["CS 61C", "Math 54", "ELENG 66"] },
   { year: "Year 3", courses: ["CS 162", "CS 188", "CS 189"] },
   { year: "Year 4", courses: ["CS 161", "EECS 151", "🎓"] },
 ];
@@ -17,13 +15,13 @@ const PREVIEW_YEARS = [
 const STATS = [
   { value: "120", label: "units planned" },
   { value: "8", label: "semesters mapped" },
-  { value: String(AP_EXAM_COUNT), label: "AP exams supported" },
+  { value: "Every", label: "AP exam supported" },
   { value: "AI", label: "advisor built in" },
 ];
 
 export default function Hero() {
   return (
-    <header className="relative overflow-hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pb-36 text-white">
+    <header className="relative overflow-hidden bg-linear-to-br from-berkeley-dark via-berkeley to-[#0b4a7a] px-4 pb-36 text-white print:hidden">
       {/* background: grid + moving glows + floating course tags */}
       <div className="hero-grid pointer-events-none absolute inset-0" />
       <div className="pointer-events-none absolute -top-32 -left-24 h-96 w-96 animate-aurora rounded-full bg-gold/25 blur-3xl" />

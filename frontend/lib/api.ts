@@ -12,6 +12,17 @@ export interface Course {
 export interface CatalogCourse extends Course {
   prereqs: string[];
   terms: string[];
+  design: boolean;      // satisfies the major design requirement
+  upper_eecs: boolean;  // counts toward the 20 upper-division EECS units
+}
+
+export interface ApExam {
+  key: string;
+  label: string;
+  group: string;
+  units: number;
+  min_score: number;  // lowest score that earns anything
+  credit: { min_score: number; courses: string[] }[];  // "HSS" = one breadth course
 }
 
 export interface Semester {
@@ -30,6 +41,8 @@ export interface PlanResult {
   plan: Semester[];
   total_units: number;
   ap_credit: string[];
+  ap_units: number;
+  upper_eecs_units: number;
   warnings: string[];
   issues: Issue[];
 }
@@ -37,7 +50,8 @@ export interface PlanResult {
 export interface PlannerSettings {
   timeline: number;
   maxUnits: number;
-  ap: string[];  // keys from lib/apExams.ts
+  summer: boolean;
+  ap: Record<string, number>;  // AP exam key -> score (3-5)
 }
 
 export interface ChatMessage {
@@ -69,6 +83,10 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 
 export function fetchCatalog(): Promise<CatalogCourse[]> {
   return request<CatalogCourse[]>("/courses");
+}
+
+export function fetchApExams(): Promise<ApExam[]> {
+  return request<ApExam[]>("/ap-exams");
 }
 
 export function generatePlan(settings: PlannerSettings): Promise<PlanResult> {

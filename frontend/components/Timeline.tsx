@@ -10,12 +10,16 @@ interface Props {
   onEdit: (plan: Semester[]) => void;
   onUndo: () => void;
   canUndo: boolean;
+  onShare: () => Promise<boolean>;
 }
 
 const TOTAL_UNITS = 120;
+const UPPER_EECS_UNITS = 20;
+
+const SEASON_ICONS: Record<string, string> = { Fall: "🍂", Spring: "🌱", Summer: "☀️" };
 
 /** Remove `code` from wherever it is, then (optionally) put it in `toTerm`. */
-function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: string, toTerm: string | null): Semester[] {
+export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: string, toTerm: string | null): Semester[] {
   const found = catalog.find((c) => c.code === code);
   const course = found && { code: found.code, title: found.title, units: found.units, category: found.category };
 
@@ -26,9 +30,10 @@ function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: string, t
   });
 }
 
-export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: Props) {
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare }: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
+  const [shared, setShared] = useState<"idle" | "copied" | "failed">("idle");
 
   if (!result) {
     return (
@@ -47,11 +52,17 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
     );
   }
 
-  const { plan, total_units, ap_credit, warnings, issues } = result;
+  const { plan, total_units, ap_credit, ap_units, upper_eecs_units, warnings, issues } = result;
   const planned = new Set([...ap_credit, ...plan.flatMap((s) => s.courses.map((c) => c.code))]);
+  const hasDesign = plan.some((s) => s.courses.some((c) => catalog.find((k) => k.code === c.code)?.design));
 
   function move(code: string, toTerm: string | null) {
     onEdit(placeCourse(plan, catalog, code, toTerm));
+  }
+
+  async function share() {
+    setShared((await onShare()) ? "copied" : "failed");
+    setTimeout(() => setShared("idle"), 2500);
   }
 
   // Group semesters by year label ("Year 1 Fall" -> "Year 1")
@@ -69,7 +80,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
     <div className="space-y-10">
 
       {/* Summary */}
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 print:shadow-none">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm text-slate-500">Units toward graduation</p>
@@ -77,15 +88,24 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
               {total_units}
               <span className="text-lg font-semibold text-slate-400"> / {TOTAL_UNITS}</span>
             </p>
+            {ap_units > 0 && <p className="text-xs text-slate-400">includes {ap_units} AP units</p>}
           </div>
-          <div className="flex gap-6 text-sm">
+          <div className="flex flex-wrap gap-6 text-sm">
             <div>
-              <p className="text-slate-500">Semesters</p>
-              <p className="text-xl font-bold text-slate-800">{plan.length}</p>
+              <p className="text-slate-500">Upper-div EECS</p>
+              <p className={`text-xl font-bold ${upper_eecs_units >= UPPER_EECS_UNITS ? "text-emerald-600" : "text-amber-600"}`}>
+                {upper_eecs_units}/{UPPER_EECS_UNITS} {upper_eecs_units >= UPPER_EECS_UNITS && "✓"}
+              </p>
+            </div>
+            <div>
+              <p className="text-slate-500">Design course</p>
+              <p className={`text-xl font-bold ${hasDesign ? "text-emerald-600" : "text-amber-600"}`}>
+                {hasDesign ? "✓ Yes" : "Needed"}
+              </p>
             </div>
             <div>
               <p className="text-slate-500">AP credit</p>
-              <p className="text-xl font-bold text-slate-800">{ap_credit.length ? ap_credit.join(", ") : "None"}</p>
+              <p className="max-w-48 text-xl font-bold text-slate-800">{ap_credit.length ? ap_credit.join(", ") : "None"}</p>
             </div>
           </div>
         </div>
@@ -107,18 +127,34 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
               </span>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light disabled:opacity-40"
-          >
-            ↶ Undo
-          </button>
+          <div className="flex gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light disabled:opacity-40"
+            >
+              ↶ Undo
+            </button>
+            <button
+              type="button"
+              onClick={share}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-berkeley-light"
+            >
+              {shared === "copied" ? "✓ Link copied" : shared === "failed" ? "Couldn't copy" : "🔗 Share link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-lg bg-berkeley px-3 py-1.5 text-xs font-medium text-white transition hover:bg-berkeley-light"
+            >
+              🖨️ Print / PDF
+            </button>
+          </div>
         </div>
 
-        <p className="mt-3 text-xs text-slate-400">
-          Drag courses between semesters, × to remove, or + to add one. Changing your settings rebuilds the plan.
+        <p className="mt-3 text-xs text-slate-400 print:hidden">
+          Drag courses between semesters (or use ⇄ on a phone), × to remove, + to add. Your plan is saved in this browser.
         </p>
       </section>
 
@@ -137,7 +173,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
       )}
 
       {Object.entries(grouped).map(([year, semesters]) => (
-        <section key={year}>
+        <section key={year} className="break-inside-avoid">
 
           {/* Year Header */}
           <div className="mb-4 flex items-center gap-3">
@@ -152,6 +188,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {semesters.map((semester) => {
               const season = semester.term.split(" ")[2];
+              const isSummer = season === "Summer";
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
               const pickerOpen = picker?.term === semester.term;
@@ -175,20 +212,25 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
                     setDragOver(null);
                     move(e.dataTransfer.getData(DRAG_TYPE), semester.term);
                   }}
-                  className={`rounded-2xl bg-white p-5 shadow-sm transition ${
+                  className={`rounded-2xl p-5 shadow-sm transition print:shadow-none ${
+                    isSummer ? "bg-sky-50/70 md:col-span-2" : "bg-white"
+                  } ${
                     isTarget
                       ? "scale-[1.01] ring-2 ring-gold shadow-lg"
                       : termIssues.length
                         ? "ring-2 ring-red-300"
-                        : "ring-1 ring-slate-200 hover:shadow-md"
+                        : isSummer
+                          ? "border border-dashed border-sky-300"
+                          : "ring-1 ring-slate-200 hover:shadow-md"
                   }`}
                 >
 
                   {/* Semester Title */}
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
-                      <span>{season === "Fall" ? "🍂" : "🌱"}</span>
+                      <span>{SEASON_ICONS[season]}</span>
                       {season}
+                      {isSummer && <span className="text-xs font-normal text-slate-400">optional</span>}
                     </h3>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                       termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
@@ -198,7 +240,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
                   </div>
 
                   {/* Courses */}
-                  <ul className="min-h-12 space-y-2">
+                  <ul className={`space-y-2 ${isSummer ? "grid gap-2 space-y-0 sm:grid-cols-2" : "min-h-12"}`}>
                     {semester.courses.map((course) => {
                       const style = CATEGORY_STYLES[course.category];
                       const problem = issues.find((i) => i.term === semester.term && i.course === course.code);
@@ -225,11 +267,28 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${style.chip}`}>
                             {course.units}u
                           </span>
+
+                          {/* Move to... (works on phones, where dragging doesn't) */}
+                          <label className="relative rounded-md px-1 text-slate-400 transition hover:bg-slate-200 hover:text-berkeley sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 print:hidden">
+                            <span aria-hidden>⇄</span>
+                            <select
+                              aria-label={`Move ${course.code} to`}
+                              value=""
+                              onChange={(e) => move(course.code, e.target.value)}
+                              className="absolute inset-0 cursor-pointer opacity-0"
+                            >
+                              <option value="" disabled>Move to…</option>
+                              {plan.filter((s) => s.term !== semester.term).map((s) => (
+                                <option key={s.term} value={s.term}>{s.term}</option>
+                              ))}
+                            </select>
+                          </label>
+
                           <button
                             type="button"
                             onClick={() => move(course.code, null)}
                             aria-label={`Remove ${course.code}`}
-                            className="rounded-md px-1.5 text-slate-300 transition hover:bg-red-100 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100"
+                            className="rounded-md px-1.5 text-slate-300 transition hover:bg-red-100 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 print:hidden"
                           >
                             ×
                           </button>
@@ -237,52 +296,57 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo }: P
                       );
                     })}
                   </ul>
+                  {isSummer && semester.courses.length === 0 && (
+                    <p className="text-center text-xs text-slate-400">Drag a course here to take it over the summer</p>
+                  )}
 
                   {/* Add course */}
-                  {pickerOpen ? (
-                    <div className="mt-3">
-                      <input
-                        autoFocus
-                        value={picker.query}
-                        onChange={(e) => setPicker({ term: semester.term, query: e.target.value })}
-                        onKeyDown={(e) => e.key === "Escape" && setPicker(null)}
-                        placeholder="Search courses, e.g. CS 189"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
-                      />
-                      <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100">
-                        {matches.map((c) => (
-                          <li key={c.code}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                move(c.code, semester.term);
-                                setPicker(null);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gold/10"
-                            >
-                              <span className={`h-2 w-2 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />
-                              <span className="font-semibold">{c.code}</span>
-                              <span className="truncate text-xs text-slate-500">{c.title}</span>
-                            </button>
-                          </li>
-                        ))}
-                        {matches.length === 0 && (
-                          <li className="px-3 py-2 text-xs text-slate-400">No matching courses left to add</li>
-                        )}
-                      </ul>
-                      <button type="button" onClick={() => setPicker(null)} className="mt-1 text-xs text-slate-400 hover:text-slate-600">
-                        Cancel
+                  <div className="print:hidden">
+                    {pickerOpen ? (
+                      <div className="mt-3">
+                        <input
+                          autoFocus
+                          value={picker.query}
+                          onChange={(e) => setPicker({ term: semester.term, query: e.target.value })}
+                          onKeyDown={(e) => e.key === "Escape" && setPicker(null)}
+                          placeholder="Search courses, e.g. CS 189"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-berkeley-light"
+                        />
+                        <ul className="mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-100">
+                          {matches.map((c) => (
+                            <li key={c.code}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  move(c.code, semester.term);
+                                  setPicker(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gold/10"
+                              >
+                                <span className={`h-2 w-2 rounded-full ${CATEGORY_STYLES[c.category].bar}`} />
+                                <span className="font-semibold">{c.code}</span>
+                                <span className="truncate text-xs text-slate-500">{c.title}</span>
+                              </button>
+                            </li>
+                          ))}
+                          {matches.length === 0 && (
+                            <li className="px-3 py-2 text-xs text-slate-400">No matching courses left to add</li>
+                          )}
+                        </ul>
+                        <button type="button" onClick={() => setPicker(null)} className="mt-1 text-xs text-slate-400 hover:text-slate-600">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPicker({ term: semester.term, query: "" })}
+                        className="mt-3 w-full rounded-xl border border-dashed border-slate-300 py-2 text-xs font-medium text-slate-500 transition hover:border-gold hover:bg-gold/5 hover:text-berkeley"
+                      >
+                        + Add course
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPicker({ term: semester.term, query: "" })}
-                      className="mt-3 w-full rounded-xl border border-dashed border-slate-300 py-2 text-xs font-medium text-slate-500 transition hover:border-gold hover:bg-gold/5 hover:text-berkeley"
-                    >
-                      + Add course
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
