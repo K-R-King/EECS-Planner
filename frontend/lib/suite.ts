@@ -1,5 +1,8 @@
-// the four sites link to each other; locally they run on ports 3000, 3002, 3003 and 3001
+// the EECS Hub and the four tools link to each other; locally the hub runs on port 3004 and the
+// tools on 3000, 3002, 3003 and 3001
 const dev = process.env.NODE_ENV === "development";
+
+export const HOME_URL = process.env.NEXT_PUBLIC_HUB_URL ?? (dev ? "http://localhost:3004" : "https://eecs-hub.vercel.app");
 
 export const SUITE = [
   { id: "planner", label: "Planner", icon: "🗺️", url: process.env.NEXT_PUBLIC_PLANNER_URL ?? (dev ? "http://localhost:3000" : "https://eecs-planner.vercel.app") },
