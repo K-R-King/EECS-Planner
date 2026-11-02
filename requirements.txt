@@ -1,0 +1,2 @@
+# Vercel installs from the repo root; the backend's pinned versions live in backend/
+-r backend/requirements.txt
