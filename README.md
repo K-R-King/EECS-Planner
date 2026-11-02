@@ -94,6 +94,7 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | your Render URL from step 1 |
 | `NEXT_PUBLIC_FEEDBACK_URL` | optional: a Google Form link, which adds a "Send feedback" button |
+| `NEXT_PUBLIC_LINKS_URL` | optional: the URL of the companion EECS Links site, which adds "EECS Links" buttons (locally they point to `http://localhost:3001`) |
 
 3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`).
 

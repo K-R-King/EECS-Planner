@@ -1,3 +1,5 @@
+import { LINKS_URL } from "@/lib/linksSite";
+
 const FLOATING_COURSES = [
   { code: "CS 61A", className: "left-[6%] top-[22%] -rotate-6 animate-float" },
   { code: "CS 70", className: "left-[14%] bottom-[18%] rotate-3 animate-float-slow" },
@@ -43,9 +45,19 @@ export default function Hero() {
           <img src="/icon.svg" alt="" className="h-8 w-8" />
           EECS Planner
         </div>
-        <span className="rounded-full border border-white/20 px-3 py-1 text-xs text-blue-100">
-          Unofficial student tool
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-white/20 px-3 py-1 text-xs text-blue-100 sm:inline">
+            Unofficial student tool
+          </span>
+          {LINKS_URL && (
+            <a
+              href={LINKS_URL}
+              className="rounded-full bg-gold px-3 py-1 text-xs font-semibold text-berkeley shadow-md shadow-gold/30 transition hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              🔗 EECS Links →
+            </a>
+          )}
+        </div>
       </nav>
 
       <div className="relative mx-auto mt-8 grid max-w-6xl items-center gap-12 lg:mt-14 lg:grid-cols-[1.15fr_1fr]">
