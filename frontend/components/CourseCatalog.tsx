@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { courseDetails, type CatalogCourse, type Category, type PlanResult } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
+import { prereqChainUrl } from "@/lib/suite";
 
 interface Props {
   catalog: CatalogCourse[];
@@ -97,6 +98,18 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">{c.title}</p>
               </div>
               <span className="text-xs text-slate-500 dark:text-slate-400">{c.units}u</span>
+              {prereqChainUrl(c.code) && (
+                <a
+                  href={prereqChainUrl(c.code)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="See its full prerequisite chain"
+                  aria-label={`See the full prerequisite chain for ${c.code}`}
+                  className="rounded-md px-1 text-sm transition hover:bg-gold/15"
+                >
+                  🧭
+                </a>
+              )}
             </li>
           ))}
           {available.length === 0 && (
