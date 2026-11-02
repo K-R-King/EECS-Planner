@@ -27,21 +27,37 @@ OUTPUT = Path(__file__).resolve().parents[1] / "backend" / "offerings.json"
 PAGE = "https://www2.eecs.berkeley.edu/Courses/{}/"
 SEASONS = ("Fall", "Spring", "Summer")
 
-# our code prefix -> the department's
-PREFIXES = {"CS": "COMPSCI", "EECS": "EECS", "ELENG": "ELENG"}
+# our code prefix -> the department's page names. (Pages named COMPSCI168 etc. also exist but show
+# older prerequisites; the CS168-style pages match the Berkeley catalog.)
+PREFIXES = {"CS": "CS", "EECS": "EECS", "ELENG": "EE"}
+# cross-listed courses whose page is under another name
+PAGE_CODES = {"CS182": "CSC182", "CS191": "CSC191", "DATA100": "CSC100", "EECS106A": "EEC106A"}
 
 # the department's course names -> our codes (old names included)
 ALIASES = {"EECS16A": "ELENG66", "EECS16B": "ELENG64", "DATAC100": "DATA100", "PHYSICS7A": "PHYS7A", "PHYSICS7B": "PHYS7B"}
 
 
-# Prerequisites written as prose ("programming experience equivalent to CS 61A") that the parser
-# can't read. Each entry quotes the page's wording.
+# Prerequisites the parser can't read from the page, matching EECS Prereqs (which checks them
+# against the Berkeley catalog). Each entry notes the official wording.
 MANUAL_PREREQS = {
-    "CS70": ["CS61A"],  # "programming experience equivalent to that gained with COMPSCI 61A"
+    # "sophomore mathematical maturity, and programming experience equivalent to ... 3 or AP CS A"
+    "CS70": [],
+    # catalog: "linear algebra at the level of ELENG 64/ELENG 66 or Math 54 ... python at the level of
+    # COMPSCI 61A"; the EECS page still says ELENG 120
+    "EECS106A": [["ELENG64", "ELENG66", "MATH54"], "CS61A"],
+    # "61A, along with either 61B or 61BL, or programming experience ..." (no subject named)
+    "CS61C": ["CS61A", "CS61B"],
+    # "61C."
+    "CS152": ["CS61C"],
+    # "DATA C8 or STAT 20; and COMPSCI 61A, C88C, or ENGIN 7; Corequisite: MATH 54, 56, 110, ELENG 66 ...";
+    # the planner has no Data 8 or corequisites, so linear algebra is scheduled first
+    "DATA100": ["CS61A", ["MATH54", "ELENG66"]],
 }
 
 
 def page_code(code):
+    if code in PAGE_CODES:
+        return PAGE_CODES[code]
     for ours, theirs in PREFIXES.items():
         if code.startswith(ours) and code[len(ours)].isdigit():
             return theirs + code[len(ours):]
@@ -120,18 +136,19 @@ def course_page(dept_code):
         return None
 
     text = html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text)))
+    # some pages (e.g. CS 70) list no formats, only the terms the course is scheduled
     formats = re.search(r"Formats:(.*?)(Grading [Bb]asis|$)", text)
-    if not formats:
+    terms = {t for t in SEASONS if formats and f"{t}:" in formats.group(1)}
+    terms |= {season for season, _ in re.findall(r"Class Schedule \((Fall|Spring|Summer) (\d{4})\)", text)}
+    if not terms:
         return None
 
-    terms = {t for t in SEASONS if f"{t}:" in formats.group(1)}
-    terms |= {season for season, _ in re.findall(r"Class Schedule \((Fall|Spring|Summer) (\d{4})\)", text)}
-    prereq = re.search(r"Prerequisites?:(.*?)(Credit Restrictions|Formats:)", text)
+    prereq = re.search(r"Prerequisites?:(.*?)(Credit Restrictions|Formats:|Grading [Bb]asis)", text)
     return (
         [t for t in SEASONS if t in terms],
         prereq.group(1).strip() if prereq else "",
         description_of(text),
-        class_hours(formats.group(1)),
+        class_hours(formats.group(1)) if formats else None,
     )
 
 

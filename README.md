@@ -94,7 +94,7 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | your Render URL from step 1 |
 | `NEXT_PUBLIC_FEEDBACK_URL` | optional: a Google Form link, which adds a "Send feedback" button |
-| `NEXT_PUBLIC_PREREQS_URL`, `NEXT_PUBLIC_LINKS_URL` | optional: where the links to the sibling EECS Prereqs and EECS Links sites point (default `https://eecs-prereqs.vercel.app` and `https://eecs-links.vercel.app`, or `localhost:3002` and `3001` locally) |
+| `NEXT_PUBLIC_PREREQS_URL`, `NEXT_PUBLIC_ELECTIVES_URL`, `NEXT_PUBLIC_LINKS_URL` | optional: where the links to the sister EECS Prereqs, EECS Electives and EECS Links sites point (default their `*.vercel.app` addresses, or `localhost:3002`, `3003` and `3001` locally) |
 
 3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`).
 
@@ -134,4 +134,4 @@ Course data lives in `backend/curriculum.py`, based on:
 - [Berkeley Engineering: H/SS requirement](https://engineering.berkeley.edu/students/undergraduate-guide/degree-requirements/humanities-and-social-sciences/)
 - [EECS department course pages](https://www2.eecs.berkeley.edu/Courses/) for term offerings (`backend/offerings.json`)
 
-Prerequisites for courses without an EECS course page (CS 191, EECS 106A, Data 100) are estimates and are marked as such in the course catalog. The H/SS page lists accepted categories rather than individual courses, so the H/SS slots offer categories; confirm specific courses with the Class Schedule. Units for ENGIN 125, ENGIN 185, PHILOS 121 and DATA C104 aren't on the EECS page and are assumed to be 3. This is an unofficial planning tool, so always confirm with an EECS advisor.
+Prerequisites come from the EECS department's current course pages (the `CS168`-style addresses; the older `COMPSCI168` pages show outdated prerequisites). A few are written by hand in `scripts/update_offerings.py` to match [EECS Prereqs](https://eecs-prereqs.vercel.app), which checks them against the Berkeley catalog: CS 70 (no course prerequisite), EECS 106A (the EECS page is out of date), Data 100 (linear algebra is scheduled first, since the planner has no corequisites), and CS 61C and CS 152 (written without subject names). CS 191's page has none, so its catalog prerequisites are in `backend/curriculum.py`. The H/SS page lists accepted categories rather than individual courses, so the H/SS slots offer categories; confirm specific courses with the Class Schedule. Units for ENGIN 125, ENGIN 185, PHILOS 121 and DATA C104 aren't on the EECS page and are assumed to be 3. This is an unofficial planning tool, so always confirm with an EECS advisor.
