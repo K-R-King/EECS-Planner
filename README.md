@@ -100,6 +100,8 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 
 **3. Connect them:** in Render, set `ALLOWED_ORIGINS` to your Vercel URL and redeploy.
 
+**Or: backend on Vercel too.** Instead of Render, the backend can be its own Vercel project deployed from the repo root (`vercel.json` and `app.py` set it up). Add `GEMINI_API_KEY` and `ALLOWED_ORIGINS` as its environment variables. `.vercelignore` replaces `.gitignore` for these uploads, so it also keeps `.env` files out. Vercel runs several short-lived copies of the backend, so the per-visitor advisor limit applies per copy.
+
 Things to know about the free tiers:
 - **Render sleeps** after about 15 idle minutes; the next visitor waits up to a minute (the page says so).
 - **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10).
