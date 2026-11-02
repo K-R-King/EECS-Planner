@@ -1,10 +1,15 @@
-import { LINKS_URL } from "@/lib/linksSite";
+import { siteUrl } from "@/lib/suite";
 
 const STEPS = [
   { icon: "⚙️", title: "Set your path", text: "Choose a timeline, unit load, and any AP credit." },
   { icon: "🗺️", title: "Get your roadmap", text: "Every semester filled, prerequisites in order." },
   { icon: "✋", title: "Make it yours", text: "Drag courses around or ask the AI advisor to edit it." },
 ];
+
+const SIBLINGS = [
+  { id: "prereqs", icon: "🧭", title: "EECS Prereqs", text: "See what every EECS course needs first, and what it unlocks.", cta: "Open the prereqs →" },
+  { id: "links", icon: "🔗", title: "EECS Links", text: "Every important Berkeley link in one place.", cta: "Open the links →" },
+] as const;
 
 // a Google Form (or any page) where students can report problems; the link only shows when it's set
 const FEEDBACK_URL = process.env.NEXT_PUBLIC_FEEDBACK_URL;
@@ -36,6 +41,24 @@ export default function Footer({ offeringsChecked }: { offeringsChecked: string 
           ))}
         </div>
 
+        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+          {SIBLINGS.map((s) => (
+            <a
+              key={s.id}
+              href={siteUrl(s.id)}
+              className="group flex flex-col justify-between gap-4 rounded-2xl border border-gold/30 bg-gold/10 p-6 transition hover:border-gold"
+            >
+              <span>
+                <span className="block font-semibold">{s.icon} {s.title}</span>
+                <span className="block text-sm text-blue-200">{s.text}</span>
+              </span>
+              <span className="self-start rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-berkeley shadow-lg shadow-gold/30 transition group-hover:-translate-y-0.5">
+                {s.cta}
+              </span>
+            </a>
+          ))}
+        </div>
+
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm sm:flex-row">
           <div className="flex items-center gap-2 font-semibold">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -47,14 +70,6 @@ export default function Footer({ offeringsChecked }: { offeringsChecked: string 
             {offeringsChecked && <><br />Term offerings from the EECS department, checked {offeringsChecked}.</>}
           </p>
           <div className="flex flex-wrap justify-center gap-2">
-            {LINKS_URL && (
-              <a
-                href={LINKS_URL}
-                className="rounded-full border border-gold/50 px-4 py-1.5 text-xs font-semibold text-gold transition hover:bg-gold hover:text-berkeley"
-              >
-                🔗 Important links
-              </a>
-            )}
             {FEEDBACK_URL && (
               <a
                 href={FEEDBACK_URL}
