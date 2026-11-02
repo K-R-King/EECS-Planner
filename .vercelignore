@@ -6,6 +6,7 @@
 .venv
 venv
 **/__pycache__
+.pytest_cache
 
 # the backend's Vercel deploy only needs backend/, app.py and requirements.txt
 frontend
