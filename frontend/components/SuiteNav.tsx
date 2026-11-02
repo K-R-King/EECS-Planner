@@ -1,6 +1,6 @@
 import { SUITE, type SiteId } from "@/lib/suite";
 
-// switches between the Planner, Prereqs and Links sites; the same component lives in all three
+// switches between the Planner, Prereqs, Electives and Links sites; the same component lives in all four sites
 export default function SuiteNav({ current }: { current: SiteId }) {
   return (
     <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/5 p-1 backdrop-blur" aria-label="EECS student tools">
