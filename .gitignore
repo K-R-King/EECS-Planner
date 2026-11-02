@@ -12,3 +12,6 @@ venv/
 # OS / editor
 .DS_Store
 .vscode/
+
+# Vercel project links
+.vercel

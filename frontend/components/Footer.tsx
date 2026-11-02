@@ -1,3 +1,5 @@
+import { LINKS_URL } from "@/lib/linksSite";
+
 const STEPS = [
   { icon: "⚙️", title: "Set your path", text: "Choose a timeline, unit load, and any AP credit." },
   { icon: "🗺️", title: "Get your roadmap", text: "Every semester filled, prerequisites in order." },
@@ -44,7 +46,15 @@ export default function Footer({ offeringsChecked }: { offeringsChecked: string 
             Unofficial planning tool. Always confirm requirements with your EECS advisor.
             {offeringsChecked && <><br />Term offerings from the EECS department, checked {offeringsChecked}.</>}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
+            {LINKS_URL && (
+              <a
+                href={LINKS_URL}
+                className="rounded-full border border-gold/50 px-4 py-1.5 text-xs font-semibold text-gold transition hover:bg-gold hover:text-berkeley"
+              >
+                🔗 Important links
+              </a>
+            )}
             {FEEDBACK_URL && (
               <a
                 href={FEEDBACK_URL}

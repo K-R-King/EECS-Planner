@@ -1,0 +1,18 @@
+{
+  "services": {
+    "eecs-planner-api": {
+      "root": ".",
+      "runtime": "python",
+      "entrypoint": "app.py"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "eecs-planner-api"
+      }
+    }
+  ]
+}

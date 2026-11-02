@@ -1,0 +1,7 @@
+# Vercel installs from the repo root and can't follow `-r`, so this mirrors
+# backend/requirements.txt. Keep the two in sync.
+fastapi==0.139.0
+uvicorn==0.50.0
+pydantic==2.13.4
+google-genai==2.10.0
+python-dotenv==1.2.4

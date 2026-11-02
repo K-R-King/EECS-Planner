@@ -94,10 +94,13 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | your Render URL from step 1 |
 | `NEXT_PUBLIC_FEEDBACK_URL` | optional: a Google Form link, which adds a "Send feedback" button |
+| `NEXT_PUBLIC_LINKS_URL` | optional: where the "EECS Links" buttons point (defaults to `https://eecs-links.vercel.app`, or `http://localhost:3001` locally) |
 
 3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`).
 
 **3. Connect them:** in Render, set `ALLOWED_ORIGINS` to your Vercel URL and redeploy.
+
+**Or: backend on Vercel too.** Instead of Render, the backend can be its own Vercel project deployed from the repo root (`vercel.json` and `app.py` set it up). Add `GEMINI_API_KEY` and `ALLOWED_ORIGINS` as its environment variables. `.vercelignore` replaces `.gitignore` for these uploads, so it also keeps `.env` files out. Vercel runs several short-lived copies of the backend, so the per-visitor advisor limit applies per copy.
 
 Things to know about the free tiers:
 - **Render sleeps** after about 15 idle minutes; the next visitor waits up to a minute (the page says so).

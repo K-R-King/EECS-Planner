@@ -1,0 +1,16 @@
+# this file replaces .gitignore for Vercel uploads, so secrets must be listed here too
+.env
+.env.*
+**/.env
+**/.env.*
+.venv
+venv
+**/__pycache__
+.pytest_cache
+
+# the backend's Vercel deploy only needs backend/, app.py and requirements.txt
+frontend
+docs
+tests
+scripts
+.github
