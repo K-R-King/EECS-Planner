@@ -1,6 +1,6 @@
 # UC Berkeley EECS Planner
 
-Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS students, then lets you reshape it by dragging courses around or by asking an AI advisor (Gemini) to change it for you.
+Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS students, then lets you reshape it by dragging courses around or by asking an AI advisor (Gemini) to change it for you. Part of the [EECS Hub](https://eecs-hub.vercel.app).
 
 ![Hero](docs/screenshots/hero.png)
 
@@ -94,9 +94,9 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 | --- | --- |
 | `NEXT_PUBLIC_API_URL` | your Render URL from step 1 |
 | `NEXT_PUBLIC_FEEDBACK_URL` | optional: a Google Form link, which adds a "Send feedback" button |
-| `NEXT_PUBLIC_PREREQS_URL`, `NEXT_PUBLIC_ELECTIVES_URL`, `NEXT_PUBLIC_LINKS_URL` | optional: where the links to the sister EECS Prereqs, EECS Electives and EECS Links sites point (default their `*.vercel.app` addresses, or `localhost:3002`, `3003` and `3001` locally) |
+| `NEXT_PUBLIC_PREREQS_URL`, `NEXT_PUBLIC_ELECTIVES_URL`, `NEXT_PUBLIC_LINKS_URL`, `NEXT_PUBLIC_HUB_URL` | optional: where the links to the sister EECS Prereqs, EECS Electives, EECS Links and EECS Hub sites point (default their `*.vercel.app` addresses, or `localhost:3002`, `3003`, `3001` and `3004` locally) |
 
-3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`).
+3. Deploy, and copy the site's URL (e.g. `https://eecs-planner.vercel.app`). Visits are counted with [Vercel Web Analytics](https://vercel.com/docs/analytics) (no cookies); turn it on under the project's **Analytics** tab.
 
 **3. Connect them:** in Render, set `ALLOWED_ORIGINS` to your Vercel URL and redeploy.
 
