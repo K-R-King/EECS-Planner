@@ -252,7 +252,10 @@ def test_placeholder_slots_offer_real_choices():
 def test_prereqs_come_from_the_eecs_pages():
     assert COURSES["CS162"]["prereqs_verified"]
     assert "CS70" in COURSES["CS162"]["prereqs"]          # the guess before was 61B + 61C only
-    assert "CS162" in COURSES["CS168"]["prereqs"]
+    # the current pages (CS168, not the stale COMPSCI168): 61B, with 61C only recommended
+    assert COURSES["CS168"]["prereqs"] == ["CS61B"]
+    # read by hand from the Berkeley catalog, since the EECS page still lists ELENG 120
+    assert COURSES["EECS106A"]["prereqs"] == [["ELENG64", "ELENG66", "MATH54"], "CS61A"]
 
 
 def test_either_or_prerequisites():

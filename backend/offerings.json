@@ -1,5 +1,5 @@
 {
-  "checked": "2026-10-31",
+  "checked": "2026-11-01",
   "courses": {
     "CS61A": {
       "terms": [
@@ -8,10 +8,10 @@
         "Summer"
       ],
       "prereqs": [],
-      "prereq_text": "MATH 1A (may be taken concurrently); programming experience equivalent to that gained from a score of 3 or above on the Advanced Placement Computer Science A exam.",
+      "prereq_text": "MATH 1A (may be taken concurrently) or Math 10A or Math 16A. Programming experience equivalent to that gained from a score of 3 or above on the Advanced Placement Computer Science exam.",
       "description": "An introduction to programming and computer science focused on abstraction techniques as means to manage program complexity.",
       "class_hours": 6.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61A/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS61A/"
     },
     "CS61B": {
       "terms": [
@@ -25,7 +25,7 @@
       "prereq_text": "COMPSCI 61A, COMPSCI 88, or ENGIN 7.",
       "description": "Fundamental dynamic data structures, including linear lists, queues, trees, and other linked structures; arrays strings, and hash tables. Storage management. Elementary principles of software engineering. Abstract data types. Algorithms for sorting and searching.",
       "class_hours": 6.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61B/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS61B/"
     },
     "CS61C": {
       "terms": [
@@ -37,24 +37,47 @@
         "CS61A",
         "CS61B"
       ],
-      "prereq_text": "COMPSCI 61A, along with either COMPSCI 61B or COMPSCI 61BL, or programming experience equivalent to that gained in COMPSCI 9C, COMPSCI 9F, or COMPSCI 9G.",
+      "prereq_text": "61A, along with either 61B or 61BL, or programming experience equivalent to that gained in 9C, 9F, or 9G.",
       "description": "The internal organization and operation of digital computers. Machine architecture, support for high-level languages (logic, arithmetic, instruction sequencing) and operating systems (I/O, interrupts, memory management, process switching). Elements of computer logic design.",
       "class_hours": 6.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI61C/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS61C/"
     },
     "CS70": {
       "terms": [
         "Fall",
-        "Spring",
-        "Summer"
+        "Spring"
+      ],
+      "prereqs": [],
+      "prereq_text": "Sophomore mathematical maturity, and programming experience equivalent to that gained in 3 or the Advanced Placement Computer Science A course.",
+      "description": "Logic, infinity, and induction; applications include undecidability and stable marriage problem. Modular arithmetic and GCDs; applications include primality testing and cryptography. Polynomials; examples include error correcting codes and interpolation.",
+      "class_hours": null,
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS70/"
+    },
+    "ELENG66": {
+      "terms": [
+        "Fall",
+        "Spring"
       ],
       "prereqs": [
-        "CS61A"
+        "MATH54"
       ],
-      "prereq_text": "Sophomore mathematical maturity, and programming experience equivalent to that gained with a score of 3 or above on the Advanced Placement Computer Science A exam.",
-      "description": "Logic, infinity, and induction; applications include undecidability and stable marriage problem. Modular arithmetic and GCDs; applications include primality testing and cryptography. Polynomials; examples include error correcting codes and interpolation.",
-      "class_hours": 5.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI70/"
+      "prereq_text": "MATH 54",
+      "description": "This course offers an introduction to signals, systems, optimization, controls, and machine learning, all grounded in linear algebraic techniques.",
+      "class_hours": null,
+      "source": "https://www2.eecs.berkeley.edu/Courses/EE66/"
+    },
+    "ELENG64": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "prereqs": [
+        "MATH54"
+      ],
+      "prereq_text": "MATH 54",
+      "description": "This course teaches the fundamentals needed to predict the behavior of real-world electronic phenomena and applications via mathematical models and circuit analytical methods that simplify initially complex problems, rendering them solvable and understandable.",
+      "class_hours": null,
+      "source": "https://www2.eecs.berkeley.edu/Courses/EE64/"
     },
     "CS170": {
       "terms": [
@@ -69,7 +92,7 @@
       "prereq_text": "COMPSCI 61B and COMPSCI 70.",
       "description": "Concept and basic techniques in the design and analysis of algorithms; models of computation; lower bounds; algorithms for optimum search trees, balanced trees and UNION-FIND algorithms; numerical and algebraic algorithms; combinatorial algorithms.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI170/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS170/"
     },
     "CS188": {
       "terms": [
@@ -84,8 +107,8 @@
       ],
       "prereq_text": "COMPSCI 61A, COMPSCI 61B, and COMPSCI 70.",
       "description": "Ideas and techniques underlying the design of intelligent computer systems. Topics include search, game playing, knowledge representation, inference, planning, reasoning under uncertainty, machine learning, robotics, perception, and language understanding.",
-      "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI188/"
+      "class_hours": 4.5,
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS188/"
     },
     "CS162": {
       "terms": [
@@ -101,7 +124,7 @@
       "prereq_text": "COMPSCI 61B, COMPSCI 61C, and COMPSCI 70.",
       "description": "Basic concepts of operating systems and system programming. Utility programs, subsystems, multiple-program systems. Processes, interprocess communication, and synchronization. Memory allocation, segmentation, paging. Loading and linking, libraries.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI162/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS162/"
     },
     "CS189": {
       "terms": [
@@ -117,7 +140,7 @@
       "prereq_text": "MATH 53 and MATH 54; and COMPSCI 70 or consent of instructor.",
       "description": "Theoretical foundations, algorithms, methodologies, and applications for machine learning.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI189/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS189/"
     },
     "CS161": {
       "terms": [
@@ -126,13 +149,14 @@
         "Summer"
       ],
       "prereqs": [
+        "CS61B",
         "CS61C",
         "CS70"
       ],
-      "prereq_text": "COMPSCI 61C; and COMPSCI 70 or MATH 55.",
+      "prereq_text": "COMPSCI 61B, COMPSCI 61C, and COMPSCI 70.",
       "description": "Introduction to computer security. Cryptography, including encryption, authentication, hash functions, cryptographic protocols, and applications. Operating system security, access control. Network security, firewalls, viruses, and worms.",
-      "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI161/"
+      "class_hours": 4.5,
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS161/"
     },
     "CS186": {
       "terms": [
@@ -140,13 +164,12 @@
         "Spring"
       ],
       "prereqs": [
-        "CS61B",
         "CS61C"
       ],
-      "prereq_text": "COMPSCI 61B and COMPSCI 61C.",
+      "prereq_text": "COMPSCI 61C or COMPSCI 47C. COMPSCI 47C may be taken as a co-requisite for transfer students.",
       "description": "Access methods and file systems to facilitate data access. Hierarchical, network, relational, and object-oriented data models. Query languages for models. Embedding query languages in programming languages. Database services including protection, integrity control, and alternative views of data.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI186/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS186/"
     },
     "EECS127": {
       "terms": [
@@ -174,7 +197,7 @@
       "prereq_text": "COMPSCI 61B and COMPSCI 61C.",
       "description": "Survey of programming languages. The design of modern programming languages. Principles and techniques of scanning, parsing, semantic analysis, and code generation. Implementation of compilers, interpreters, and assemblers. Overview of run-time organization and error handling.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI164/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS164/"
     },
     "CS168": {
       "terms": [
@@ -183,13 +206,12 @@
         "Summer"
       ],
       "prereqs": [
-        "CS61B",
-        "CS162"
+        "CS61B"
       ],
-      "prereq_text": "COMPSCI 61B and COMPSCI 162.",
+      "prereq_text": "COMPSCI 61B; COMPSCI 61C is recommended.",
       "description": "This course is an introduction to the Internet architecture. We will focus on the concepts and fundamental design principles that have contributed to the Internet's scalability and robustness and survey the various protocols and algorithms used within this architecture.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI168/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS168/"
     },
     "CS169A": {
       "terms": [
@@ -201,10 +223,10 @@
         "CS61A",
         "CS61B"
       ],
-      "prereq_text": "COMPSCI 61A and COMPSCI 61B; COMPSCI 70 is recommended.",
+      "prereq_text": "COMPSCI C88C or DATA C88C or COMPSCI 61A or COMPSCI 47A; and COMPSCI 61B or COMPSCI 61BL or COMPSCI 47B.",
       "description": "Ideas and techniques for designing, developing, and modifying large software systems.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI169A/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS169A/"
     },
     "EECS126": {
       "terms": [
@@ -240,10 +262,10 @@
         "ELENG66",
         "ELENG64"
       ],
-      "prereq_text": "EECS 16A and EECS 16B.",
+      "prereq_text": "ELENG 66 AND ELENG 64.",
       "description": "Continuous and discrete-time transform analysis techniques with illustrative applications. Linear and time-invariant systems, transfer functions. Fourier series, Fourier transform, Laplace and Z-transforms. Sampling and reconstruction.",
       "class_hours": 5.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/ELENG120/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/EE120/"
     },
     "CS184": {
       "terms": [
@@ -252,12 +274,13 @@
         "Summer"
       ],
       "prereqs": [
-        "CS61B"
+        "CS61B",
+        "MATH54"
       ],
-      "prereq_text": "COMPSCI 61B or COMPSCI 61BL; programming skills in C, C++, or Java; linear algebra and calculus.",
-      "description": "Techniques of modeling objects for the purpose of computer rendering: boundary representations, constructive solids geometry, hierarchical scene descriptions. Mathematical techniques for curve and surface representation.",
+      "prereq_text": "COMPSCI 61B; and MATH 54 OR MATH 110 Ability to write medium-to-large programs in C++. The course includes intensive programming assignments requiring manual memory management, debugging, and performance tuning. Linear Algebra: Matrix and vector operations, dot/cross products, transformations, eigenvectors. Calculus: Differentiation and integration, particularly in the context of curves and lighting models. Trigonometry: Especially in camera models, projection, and shading.",
+      "description": "A broad introduction to the fundamentals of computer graphics. The main areas covered are modeling, rendering, animation and imaging.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI184/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS184/"
     },
     "CS160": {
       "terms": [
@@ -271,20 +294,21 @@
       "prereq_text": "COMPSCI 61B or COMPSCI 61BL.",
       "description": "The design, implementation, and evaluation of user interfaces. User-centered design and task analysis. Conceptual models and interface metaphors. Usability inspection and evaluation methods. Analysis of user study data. Input methods (keyboard, pointing, touch, tangible) and input models.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI160/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS160/"
     },
     "CS152": {
       "terms": [
         "Fall",
-        "Spring"
+        "Spring",
+        "Summer"
       ],
       "prereqs": [
         "CS61C"
       ],
-      "prereq_text": "COMPSCI 61C",
+      "prereq_text": "61C.",
       "description": "Instruction set architecture, microcoding, pipelining (simple and complex). Memory hierarchies and virtual memory. Processor parallelism: VLIW, vectors, multithreading. Multiprocessors.",
       "class_hours": 5.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI152/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS152/"
     },
     "CS172": {
       "terms": [
@@ -297,7 +321,7 @@
       "prereq_text": "COMPSCI 170",
       "description": "Finite automata, Turing machines and RAMs. Undecidable, exponential, and polynomial-time problems. Polynomial-time equivalence of all reasonable models of computation. Nondeterministic Turing machines. Theory of NP-completeness: Cook's theorem, NP-completeness of basic problems.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI172/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS172/"
     },
     "CS174": {
       "terms": [
@@ -310,7 +334,7 @@
       "prereq_text": "COMPSCI 170",
       "description": "Permutations, combinations, principle of inclusion and exclusion, generating functions, Ramsey theory. Expectation and variance, Chebychev's inequality, Chernov bounds.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI174/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS174/"
     },
     "CS176": {
       "terms": [
@@ -324,7 +348,7 @@
       "prereq_text": "COMPSCI 70 and COMPSCI 170; experience programming in a language such as C, C++, Java, or Python.",
       "description": "Algorithms and probabilistic models that arise in various computational biology applications: suffix trees, suffix arrays, pattern matching, repeat finding, sequence alignment, phylogenetics, genome rearrangements, hidden Markov models, gene finding, motif finding, stochastic context free grammars, .",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI176/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CS176/"
     },
     "CS182": {
       "terms": [
@@ -340,7 +364,25 @@
       "prereq_text": "MATH 53, MATH 54, and COMPSCI 61B; COMPSCI 70 or STAT 134; COMPSCI 189 is recommended.",
       "description": "Deep Networks have revolutionized computer vision, language technology, robotics and control. They have growing impact in many other areas of science and engineering. They do not however, follow a closed or compact set of theoretical principles.",
       "class_hours": 4.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/COMPSCI182/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/CSC182/"
+    },
+    "EECS106A": {
+      "terms": [
+        "Fall",
+        "Spring"
+      ],
+      "prereqs": [
+        [
+          "ELENG64",
+          "ELENG66",
+          "MATH54"
+        ],
+        "CS61A"
+      ],
+      "prereq_text": "EL ENG 120 or consent of instructor.",
+      "description": "An introduction to the kinematics, dynamics, and control of robot manipulators, robotic vision, and sensing. The course covers forward and inverse kinematics of serial chain manipulators, the manipulator Jacobian, force relations, dynamics, and control.",
+      "class_hours": 7.0,
+      "source": "https://www2.eecs.berkeley.edu/Courses/EEC106A/"
     },
     "EECS149": {
       "terms": [
@@ -366,10 +408,28 @@
         "ELENG66",
         "ELENG64"
       ],
-      "prereq_text": "EECS 16A and EECS 16B.",
+      "prereq_text": "ELENG 66 AND ELENG 64.",
       "description": "This course covers the fundamental circuit and device concepts needed to understand analog integrated circuits. After an overview of the basic properties of semiconductors, the p-n junction and MOS capacitors are described and the MOSFET is modeled as a large-signal device.",
       "class_hours": 7.0,
-      "source": "https://www2.eecs.berkeley.edu/Courses/ELENG105/"
+      "source": "https://www2.eecs.berkeley.edu/Courses/EE105/"
+    },
+    "DATA100": {
+      "terms": [
+        "Fall",
+        "Spring",
+        "Summer"
+      ],
+      "prereqs": [
+        "CS61A",
+        [
+          "MATH54",
+          "ELENG66"
+        ]
+      ],
+      "prereq_text": "DATA C8 or STAT 20 with a C- or better, or Pass; and COMPSCI 61A, COMPSCI/DATA C88C, or ENGIN 7 with a C- or better, or Pass; Corequisite: MATH 54, 56, 110, ELENG 66, PHYSICS 89 or equivalent linear algebra (C- or better, or Pass, required if completed prior to Data C100).",
+      "description": "In this course, students will explore the data science lifecycle, including question formulation, data collection and cleaning, exploratory data analysis and visualization, statistical inference and prediction\u200b, and decision-making.\u200b This class will focus on quantitative critical thinking\u200b and key p.",
+      "class_hours": 5.0,
+      "source": "https://www2.eecs.berkeley.edu/Courses/CSC100/"
     }
   }
 }

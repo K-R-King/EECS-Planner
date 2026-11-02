@@ -127,7 +127,10 @@ COURSES = {
     "CS174":    {"title": "Combinatorics & Discrete Probability", "units": 4, "prereqs": ["CS170"],                    "terms": BOTH, "category": "elective", "upper_eecs": True},
     "CS176":    {"title": "Algorithms for Computational Biology", "units": 4, "prereqs": ["CS61B", "CS70"],            "terms": BOTH, "category": "elective", "upper_eecs": True},
     "CS182":    {"title": "Deep Neural Networks",                 "units": 4, "prereqs": ["CS189"],                    "terms": BOTH, "category": "elective", "upper_eecs": True, "design": True},
-    "CS191":    {"title": "Quantum Information Science",          "units": 4, "prereqs": ["CS70", "MATH54"],           "terms": BOTH, "category": "elective", "upper_eecs": True},
+    # CS C191's page has no prerequisites or terms; from the catalog: "Linear Algebra (ELENG 66 or
+    # PHYSICS 89 or MATH 54) AND either discrete mathematics (COMPSCI 70 or MATH 55), or quantum
+    # mechanics (...)". CS 70 is the option the planner tracks.
+    "CS191":    {"title": "Quantum Information Science",          "units": 4, "prereqs": [["ELENG66", "MATH54"], "CS70"], "terms": BOTH, "category": "elective", "upper_eecs": True},
     "EECS106A": {"title": "Robotic Manipulation & Interaction",   "units": 4, "prereqs": ["ELENG66", "ELENG64"],       "terms": BOTH, "category": "elective", "upper_eecs": True, "design": True},
     "EECS149":  {"title": "Embedded Systems",                     "units": 4, "prereqs": ["CS61C", "ELENG64"],         "terms": BOTH, "category": "elective", "upper_eecs": True, "design": True},
     "ELENG105": {"title": "Microelectronic Devices & Circuits",   "units": 4, "prereqs": ["ELENG64"],                  "terms": BOTH, "category": "elective", "upper_eecs": True},
