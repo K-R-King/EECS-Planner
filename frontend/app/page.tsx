@@ -60,6 +60,7 @@ export default function Home() {
             onFix={planner.applyFix}
             picks={settings.picks}
             onPick={planner.pick}
+            onPickInto={planner.pickInto}
           />
           {result && (
             <div className="print:hidden">

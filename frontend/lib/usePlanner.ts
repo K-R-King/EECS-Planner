@@ -238,6 +238,13 @@ export function usePlanner() {
     if (result) edit(result.plan, next);
   }
 
+  /** Choose the real course for a slot and put the slot in a new place, as one edit (e.g. ENGIN 125 found in "+ Add course"). */
+  function pickInto(code: string, choice: string, plan: Semester[]) {
+    const next = { ...settings, picks: { ...settings.picks, [code]: choice } };
+    setSettings(next);
+    edit(plan, next);
+  }
+
   async function share(): Promise<boolean> {
     if (!result) return false;
     try {
@@ -252,6 +259,6 @@ export function usePlanner() {
     result, settings, catalog, apExams, focusTracks, loading, slow, restoreCount,
     notice, dismissNotice: () => setNotice(null),
     canUndo: undoStack.length > 0,
-    generate, applyFix, edit, pick, commit, undo, share,
+    generate, applyFix, edit, pick, pickInto, commit, undo, share,
   };
 }

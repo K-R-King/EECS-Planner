@@ -160,6 +160,28 @@ test("electives picked on EECS Electives are planned first", async ({ page }) =>
   await expect(course(page, "CS182")).toBeVisible();
 });
 
+test("add course finds codes typed with a space, and slot choices like ENGIN 125", async ({ page }) => {
+  await generate(page);
+  const target = await otherTerm(page, "ETHICS");
+  const addIn = async (term: string, query: string) => {
+    await semester(page, term).getByRole("button", { name: "+ Add course" }).click();
+    await semester(page, term).getByPlaceholder(/Search courses/).fill(query);
+  };
+
+  // "CS 172" (with a space) finds CS172
+  await addIn(target, "cs 172");
+  await semester(page, target).getByRole("button", { name: /^CS172/ }).click();
+  await expect(semester(page, target).locator('[data-course="CS172"]')).toBeVisible();
+
+  // ENGIN 125 isn't a course of its own: it fills the Ethics slot, which moves here and becomes 3 units
+  await addIn(target, "engin 125");
+  await semester(page, target).getByRole("button", { name: /ENGIN 125.*Ethics slot.*also upper-div H\/SS/ }).click();
+  const ethics = semester(page, target).locator('[data-course="ETHICS"]');
+  await expect(ethics).toBeVisible();
+  await expect(ethics.getByRole("combobox", { name: /Choose a course for/ })).toHaveValue("ENGIN 125");
+  await expect(ethics).toContainText("3u");
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");
