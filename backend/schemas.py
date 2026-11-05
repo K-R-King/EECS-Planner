@@ -23,6 +23,8 @@ class Settings(BaseModel):
     focus: str = "balanced"
     completed: list[CourseCode] = Field(default=[], max_length=60)
     picks: dict[str, Annotated[str, StringConstraints(max_length=100)]] = {}  # slot -> chosen option
+    # electives the student picked (e.g. on EECS Electives); the planner schedules them first
+    electives: list[CourseCode] = Field(default=[], max_length=12)
 
     @field_validator("ap")
     @classmethod
@@ -47,6 +49,15 @@ class Settings(BaseModel):
             if not any(o["label"] == label for o in options):
                 raise ValueError(f"'{label}' isn't an option for {slot}")
         return picks
+
+    @field_validator("electives")
+    @classmethod
+    def known_electives(cls, electives):
+        codes = list(dict.fromkeys(normalize_code(c) for c in electives))
+        wrong = [c for c in codes if COURSES.get(c, {}).get("category") != "elective"]
+        if wrong:
+            raise ValueError(f"not electives in the catalog: {', '.join(wrong)}")
+        return codes
 
     @field_validator("completed")
     @classmethod

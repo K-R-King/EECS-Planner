@@ -20,6 +20,7 @@ Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS st
 - **Requirement checks:** prerequisites, term offerings (real Fall/Spring/Summer offerings from the EECS department's course pages), unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, 2 upper-division H/SS courses, and the design course.
 - **Focus tracks:** pick AI/ML, Systems, Theory, Hardware, or Security and the electives follow.
 - **Courses already taken:** community college or dual-enrollment courses count as done.
+- **Your electives:** electives picked on [EECS Electives](https://eecs-electives.vercel.app) (or passed as `?electives=CS189.CS162`) are scheduled before the focus track's, still following every rule; one that doesn't fit is flagged in the settings.
 - **Real choices:** pick the actual natural science course and H/SS category for each placeholder slot.
 - **Edit freely:** drag and drop (or "Move to…" on phones), add from the course catalog, remove, undo. Hover a course to see what it needs first and what it unlocks.
 - **AI advisor:** answers questions as it writes (streamed), and proposes plan edits ("make Year 2 lighter") that you accept or reject.
@@ -126,7 +127,7 @@ Courses marked as taken on EECS Prereqs or EECS Electives travel with the links 
 | POST   | `/advisor`       | `{ plan, question, settings, history }`      | Answers, and proposes plan edits when asked    |
 | POST   | `/advisor/stream`| same as `/advisor`                           | Same, streamed as newline-delimited JSON       |
 
-`settings` is `{ timeline, maxUnits, summer, focus, completed: [codes], ap: { examKey: score } }`. Malformed requests get a 422 explaining what's wrong.
+`settings` is `{ timeline, maxUnits, summer, focus, completed: [codes], ap: { examKey: score }, picks: { slot: option }, electives: [codes] }`. Malformed requests get a 422 explaining what's wrong.
 
 ## Curriculum
 

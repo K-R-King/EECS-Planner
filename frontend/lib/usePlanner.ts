@@ -19,8 +19,18 @@ import { clearShareLink, loadSaved, readShareLink, save, shareLink } from "@/lib
 import { fromPrereqsCode, toPrereqsCode } from "@/lib/suite";
 
 export const DEFAULT_SETTINGS: Settings = {
-  timeline: 4, maxUnits: 16, summer: false, ap: {}, focus: "balanced", completed: [], picks: {},
+  timeline: 4, maxUnits: 16, summer: false, ap: {}, focus: "balanced", completed: [], picks: {}, electives: [],
 };
+
+/** Electives picked on EECS Electives (?electives=CS189.CS162, Prereqs codes), removed from the address bar. */
+function takeIncomingElectives(): string[] | null {
+  const url = new URL(window.location.href);
+  const raw = url.searchParams.get("electives");
+  if (raw === null) return null;
+  url.searchParams.delete("electives");
+  window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  return raw.split(".").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]+\d+[A-Z]*$/.test(c));
+}
 
 /**
  * All of the planner's state: the plan, its settings, undo history, saving/sharing,
@@ -44,9 +54,13 @@ export function usePlanner() {
   const latestRequest = useRef(0);
   // courses marked as taken on a sister site (?taken=...), added once the catalog and saved plan are in
   const incomingTaken = useRef<string[] | null>(null);
+  const incomingElectives = useRef<string[] | null>(null);
+  // a message about something the page couldn't do, shown until dismissed
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     incomingTaken.current = takeIncoming();
+    incomingElectives.current = takeIncomingElectives();
     fetchCatalog().then(setCatalog).catch(console.error);
     fetchApExams().then(setApExams).catch(console.error);
     fetchFocusTracks().then(setFocusTracks).catch(console.error);
@@ -91,25 +105,40 @@ export function usePlanner() {
     });
   }, []);
 
-  // add courses marked as taken on a sister site to "courses already taken"
+  // courses marked as taken on a sister site go into "courses already taken", and electives picked on
+  // EECS Electives (?electives=...) into the plan
   useEffect(() => {
-    const codes = incomingTaken.current;
-    if (!restored || !catalog.length || !codes) return;
-    incomingTaken.current = null;
-    const known = new Set(catalog.map((c) => c.code));
-    const done = new Set([...settings.completed, ...(result?.ap_credit ?? [])]);
-    const added = [...new Set(codes.map(fromPrereqsCode))].filter((c) => known.has(c) && !done.has(c));
-    if (!added.length) return;
+    const takenCodes = incomingTaken.current;
+    const electiveCodes = incomingElectives.current;
+    if (!restored || !catalog.length || (!takenCodes && !electiveCodes)) return;
+    incomingTaken.current = incomingElectives.current = null;
 
-    const next = { ...settings, completed: [...settings.completed, ...added] };
-    if (!result) {
+    const byCode = new Map(catalog.map((c) => [c.code, c]));
+    const done = new Set([...settings.completed, ...(result?.ap_credit ?? [])]);
+    const taken = [...new Set((takenCodes ?? []).map(fromPrereqsCode))].filter((c) => byCode.has(c) && !done.has(c));
+    const completed = [...settings.completed, ...taken];
+
+    const wanted = [...new Set((electiveCodes ?? []).map(fromPrereqsCode))];
+    const isElective = (c: string) => byCode.get(c)?.category === "elective";
+    const missing = wanted.filter((c) => !isElective(c));
+    const electives = wanted.filter((c) => isElective(c) && !settings.electives.includes(c) && !completed.includes(c));
+    if (missing.length) {
+      setNotice(`${missing.join(", ")} ${missing.length === 1 ? "isn't" : "aren't"} in the planner's elective list yet, so ${missing.length === 1 ? "it wasn't" : "they weren't"} added to your plan.`);
+    }
+    if (!taken.length && !electives.length) return;
+
+    const next = { ...settings, completed, electives: [...settings.electives, ...electives] };
+    if (!result && !electives.length) {
       // no plan yet, so just fill in the settings
       setSettings(next);
       setRestoreCount((n) => n + 1);
       return;
     }
-    const message = `You marked ${added.join(", ")} as taken on another EECS site. Rebuild your plan with them? Your edits will be lost.`;
-    if (edited && !window.confirm(message)) return;
+    const what = [
+      taken.length && `marked ${taken.join(", ")} as taken`,
+      electives.length && `picked ${electives.join(", ")} as electives`,
+    ].filter(Boolean).join(" and ");
+    if (result && edited && !window.confirm(`You ${what} on another EECS site. Rebuild your plan with them? Your edits will be lost.`)) return;
     if (generate(next, { confirmed: true })) setRestoreCount((n) => n + 1);
     // runs once, when both are ready
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,6 +250,7 @@ export function usePlanner() {
 
   return {
     result, settings, catalog, apExams, focusTracks, loading, slow, restoreCount,
+    notice, dismissNotice: () => setNotice(null),
     canUndo: undoStack.length > 0,
     generate, applyFix, edit, pick, commit, undo, share,
   };

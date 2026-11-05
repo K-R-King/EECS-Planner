@@ -101,6 +101,7 @@ def build_prompt(plan, question, settings, issues, history, already_done, feedba
     past = "\n".join(f"{m['role']}: {m['text']}" for m in history[-6:]) or "(none)"
     focus = FOCUS_TRACKS.get(settings.get("focus", "balanced"), FOCUS_TRACKS["balanced"])["label"]
     picks = settings.get("picks") or {}
+    chosen = settings.get("electives") or []
 
     retry = ""
     if feedback:
@@ -116,6 +117,7 @@ changes) must not cause any of these problems."""
 
     return f"""Student settings: max {settings.get('maxUnits', 16)} units per semester. Focus: {focus}.
 Student's choices for placeholder slots (these change units): {json.dumps(picks) if picks else "(none)"}
+Electives the student picked (keep them in the plan unless asked otherwise): {", ".join(chosen) if chosen else "(none)"}
 
 Already done through AP credit or courses taken before Berkeley (count these as completed before Year 1;
 never add them to the plan):

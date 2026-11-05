@@ -145,10 +145,19 @@ def focus_list():
     }
 
 
-def course_order(focus):
-    """All course codes, with the focus track's electives first."""
+def course_order(focus, chosen=()):
+    """
+    All course codes: electives the student picked first, then the focus track's, then the rest.
+    If the picks include no design course, the next design course comes right after them, so the plan
+    still meets the design requirement when it only has room for a few electives.
+    """
     preferred = FOCUS_TRACKS.get(focus, FOCUS_TRACKS["balanced"])["electives"]
-    return preferred + [c for c in COURSES if c not in preferred]
+    rest = list(dict.fromkeys([*preferred, *COURSES]))
+    chosen = [c for c in dict.fromkeys(chosen) if c in COURSES]
+    if not any(COURSES[c].get("design") for c in chosen):
+        design = next((c for c in rest if c not in chosen and COURSES[c].get("design")), None)
+        chosen += [design] if design else []
+    return chosen + [c for c in rest if c not in chosen]
 
 
 def ap_exam_list():
@@ -394,7 +403,7 @@ def build_degree_plan(completed_courses, settings=None, suggest=True, fill_summe
     picks = picks_of(settings)
     credited, ap_units = ap_credit(scores)
     prior = [c for c in completed_courses_of(settings, completed_courses) if c not in credited]
-    order = course_order((settings or {}).get("focus", "balanced"))
+    order = course_order((settings or {}).get("focus", "balanced"), (settings or {}).get("electives", []))
 
     # waived slots count as done but add no units
     completed = set(prior) | set(credited) | set(waived_by(picks))
