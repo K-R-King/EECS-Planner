@@ -96,6 +96,13 @@ export interface PlannerSettings {
   completed: string[];         // course codes already taken (community college, dual enrollment)
   picks: Record<string, string>;  // placeholder slot -> chosen option label, e.g. { PHYS7A: "PHYSICS 5A" }
   electives: string[];         // electives the student picked (e.g. on EECS Electives); planned first
+  transfers: Transfer[];       // community college courses and the Berkeley course each counts as (also in `completed`)
+}
+
+/** A course from another college, entered by the student, and the planner course it covers (they check it on ASSIST). */
+export interface Transfer {
+  course: string;    // as the student wrote it, e.g. "ENGL C1000 (De Anza)"
+  countsAs: string;  // a planner course code, e.g. "R1A"
 }
 
 export interface ChatMessage {

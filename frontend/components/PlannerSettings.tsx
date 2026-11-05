@@ -50,14 +50,37 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
     const completed = settings.completed.includes(code)
       ? settings.completed.filter((c) => c !== code)
       : [...settings.completed, code];
-    update({ completed });
+    // removing a course also removes the community college course that covered it
+    update({ completed, transfers: settings.transfers.filter((t) => completed.includes(t.countsAs)) });
   }
+
+  // a community college course the student says counts as a planner course (they check it on ASSIST)
+  const [transferCourse, setTransferCourse] = useState("");
+  const [transferFor, setTransferFor] = useState("");
+  function addTransfer() {
+    const course = transferCourse.trim();
+    if (!course || !transferFor) return;
+    update({
+      completed: settings.completed.includes(transferFor) ? settings.completed : [...settings.completed, transferFor],
+      transfers: [...settings.transfers.filter((t) => t.countsAs !== transferFor), { course, countsAs: transferFor }],
+    });
+    setTransferCourse("");
+    setTransferFor("");
+  }
+  const transferOf = (code: string) => settings.transfers.find((t) => t.countsAs === code);
+  const open = catalog.filter((c) => !settings.completed.includes(c.code));
+  const TRANSFER_GROUPS = [
+    { label: "Required courses", courses: open.filter((c) => c.category === "core") },
+    { label: "Breadth (H/SS) and ethics", courses: open.filter((c) => c.category === "hss" || c.category === "ethics") },
+    { label: "Electives", courses: open.filter((c) => c.category === "elective") },
+  ].filter((g) => g.courses.length);
 
   const selectedCount = Object.keys(settings.ap).length;
   const takenMatches = takenQuery
     ? catalog
         .filter((c) => c.category !== "hss" && !settings.completed.includes(c.code))
-        .filter((c) => `${c.code} ${c.title}`.toLowerCase().includes(takenQuery.toLowerCase()))
+        // codes match with or without spaces ("CS 61A")
+        .filter((c) => c.code.toLowerCase().includes(takenQuery.toLowerCase().replace(/\s+/g, "")) || c.title.toLowerCase().includes(takenQuery.trim().toLowerCase()))
         .slice(0, 8)
     : [];
 
@@ -228,7 +251,7 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
                     aria-label={`Remove ${code} from courses taken`}
                     className="rounded-full border border-gold bg-gold/15 px-3 py-1 text-xs font-semibold text-berkeley dark:text-blue-300"
                   >
-                    ✓ {code} ×
+                    ✓ {transferOf(code) ? `${transferOf(code)!.course} → ${code}` : code} ×
                   </button>
                 ))}
               </div>
@@ -259,6 +282,51 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
                 ))}
               </ul>
             )}
+
+            {/* community college courses: the student says which planner course each counts as */}
+            <div className="mt-5 rounded-xl bg-white p-3 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">From a community college</p>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                Type your course and pick the Berkeley course it counts as. Check what counts on{" "}
+                <a href="https://assist.org" target="_blank" rel="noopener noreferrer" className="font-semibold text-berkeley-light underline hover:text-gold-dark dark:text-blue-300">
+                  ASSIST ↗
+                </a>{" "}
+                (choose your college, then UC Berkeley).
+              </p>
+              <form
+                className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+                onSubmit={(e) => { e.preventDefault(); addTransfer(); }}
+              >
+                <input
+                  value={transferCourse}
+                  onChange={(e) => setTransferCourse(e.target.value)}
+                  maxLength={60}
+                  placeholder="Your course, e.g. ENGL C1000"
+                  aria-label="Community college course"
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light dark:bg-slate-900"
+                />
+                <select
+                  value={transferFor}
+                  onChange={(e) => setTransferFor(e.target.value)}
+                  aria-label="Berkeley course it counts as"
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-berkeley-light dark:bg-slate-900"
+                >
+                  <option value="">Counts as…</option>
+                  {TRANSFER_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.courses.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.title}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={!transferCourse.trim() || !transferFor}
+                  className="rounded-lg bg-berkeley px-4 py-2 text-sm font-semibold text-white transition hover:bg-berkeley-dark disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600"
+                >
+                  Add
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>
