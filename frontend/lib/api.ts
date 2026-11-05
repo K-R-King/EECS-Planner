@@ -95,6 +95,7 @@ export interface PlannerSettings {
   focus: string;               // key from /focus-tracks
   completed: string[];         // course codes already taken (community college, dual enrollment)
   picks: Record<string, string>;  // placeholder slot -> chosen option label, e.g. { PHYS7A: "PHYSICS 5A" }
+  electives: string[];         // electives the student picked (e.g. on EECS Electives); planned first
 }
 
 export interface ChatMessage {

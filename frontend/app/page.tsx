@@ -37,7 +37,16 @@ export default function Home() {
           slow={planner.slow}
           catalogYear={planner.focusTracks.catalog_year}
           autoUpdate={result !== null}
+          planned={result ? new Set(result.plan.flatMap((s) => s.courses.map((c) => c.code))) : null}
         />
+
+        {planner.notice && (
+          <div role="status" className="mx-auto mt-6 flex max-w-5xl items-start gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-800 print:hidden">
+            <span aria-hidden>ℹ️</span>
+            <p className="flex-1">{planner.notice}</p>
+            <button type="button" onClick={planner.dismissNotice} aria-label="Dismiss" className="font-semibold text-amber-900 hover:text-amber-700 dark:text-amber-100">×</button>
+          </div>
+        )}
 
         {/* TIMELINE + CATALOG */}
         <div className={`mx-auto mt-12 grid gap-8 print:mt-0 ${result ? "max-w-7xl lg:grid-cols-[1fr_20rem] print:block" : "max-w-5xl"}`}>

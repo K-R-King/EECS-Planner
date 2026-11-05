@@ -7,9 +7,9 @@
   /* Berkeley Blue & California Gold */
   --color-berkeley: #003262;
   --color-berkeley-dark: #001a33;
-  --color-berkeley-light: #3b7ea1;
+  --color-berkeley-light: #2a6688;  /* darker than Berkeley's Founders Rock so links pass 4.5:1 */
   --color-gold: #fdb515;
-  --color-gold-dark: #c4820e;
+  --color-gold-dark: #8a5b00;  /* darker than Medalist so gold text passes 4.5:1 on white */
 
   --animate-float: float 6s ease-in-out infinite;
   --animate-float-slow: float 9s ease-in-out infinite;

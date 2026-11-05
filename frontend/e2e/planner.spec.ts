@@ -144,6 +144,22 @@ test("courses marked as taken on a sister site are filled in", async ({ page }) 
   expect(remembered.sort()).toEqual(["CS61A", "EE64", "MATH55"]);
 });
 
+test("electives picked on EECS Electives are planned first", async ({ page }) => {
+  // CSC182 is the Prereqs/Electives name for CS 182; MATH110 isn't one of the planner's electives
+  await page.goto("/?electives=CS186.CSC182.MATH110");
+  await expect(page.getByText("Units toward graduation")).toBeVisible();
+  expect(new URL(page.url()).search).toBe("");
+  await expect(course(page, "CS186")).toBeVisible();
+  await expect(course(page, "CS182")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove CS186 from your electives" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "MATH110 isn't in the planner's elective list" })).toBeVisible();
+
+  // removing a pick rebuilds the plan without it
+  await page.getByRole("button", { name: "Remove CS186 from your electives" }).click();
+  await expect(page.getByRole("button", { name: "Remove CS186 from your electives" })).toHaveCount(0);
+  await expect(course(page, "CS182")).toBeVisible();
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");

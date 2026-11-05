@@ -290,3 +290,15 @@ def test_prompt_catalog_is_compact_but_complete():
     assert {c["code"] for c in slim} == {c["code"] for c in client.get("/courses").json()}
     assert all("description" not in c for c in slim)
     assert len(ai.prompt_catalog()) < 0.75 * len(json.dumps(client.get("/courses").json()))
+
+
+def test_picked_electives_are_checked():
+    ok = client.post("/generate-plan", json={"settings": {**SETTINGS, "electives": ["cs 189", "CS189"]}})
+    assert ok.status_code == 200
+    assert client.post("/generate-plan", json={"settings": {**SETTINGS, "electives": ["CS61A"]}}).status_code == 422
+    assert client.post("/generate-plan", json={"settings": {**SETTINGS, "electives": ["CS999"]}}).status_code == 422
+
+
+def test_advisor_is_told_about_picked_electives():
+    prompt = ai.build_prompt([], "hi", {"electives": ["CS189"]}, [], [], [])
+    assert "Electives the student picked" in prompt and "CS189" in prompt

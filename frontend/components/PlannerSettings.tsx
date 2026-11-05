@@ -16,6 +16,7 @@ interface Props {
   autoUpdate: boolean;
   slow: boolean;         // the server is taking a while (waking up)
   catalogYear: string;   // whose requirements these are, e.g. "2026–27"
+  planned: Set<string> | null;  // courses in the current plan, to flag picked electives that didn't fit
 }
 
 const TIMELINES = [
@@ -26,7 +27,7 @@ const TIMELINES = [
 
 const SCORES = [3, 4, 5];
 
-export default function PlannerSettings({ initial, apExams, focusTracks, catalog, onGenerate, loading, autoUpdate, slow, catalogYear }: Props) {
+export default function PlannerSettings({ initial, apExams, focusTracks, catalog, onGenerate, loading, autoUpdate, slow, catalogYear, planned }: Props) {
   const [settings, setSettings] = useState<Settings>(initial);
   const [showAp, setShowAp] = useState(false);
   const [showTaken, setShowTaken] = useState(false);
@@ -161,6 +162,36 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
             </button>
           ))}
         </div>
+
+        {/* electives picked on EECS Electives, planned before the focus track's */}
+        {settings.electives.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              Your electives <span className="text-slate-500 dark:text-slate-400">· planned first</span>
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {settings.electives.map((code) => {
+                const missing = planned !== null && !planned.has(code);
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => update({ electives: settings.electives.filter((c) => c !== code) })}
+                    aria-label={`Remove ${code} from your electives`}
+                    title={missing ? "Didn't fit: raise the unit limit, add summers, or drag it in from the catalog" : catalog.find((c) => c.code === code)?.title}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      missing
+                        ? "border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+                        : "border-gold bg-gold/15 text-berkeley dark:text-blue-300"
+                    }`}
+                  >
+                    {missing ? "⚠ " : "★ "}{code}{missing ? " (didn't fit)" : ""} ×
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Courses already taken */}

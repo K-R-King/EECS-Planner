@@ -343,3 +343,37 @@ def test_old_course_names_are_understood():
     assert normalize_code("COMPSCI 61A") == "CS61A"
     result = build_degree_plan([], {"timeline": 4, "maxUnits": 16, "completed": ["Math 1A", "EECS 16A"]})
     assert result["completed"] == ["MATH51", "ELENG66"]
+
+
+# ---------- electives the student picked ----------
+
+def planned_codes(result):
+    return [c for s in result["plan"] for c in codes(s)]
+
+
+@pytest.mark.parametrize("picked", [["CS189"], ["CS189", "CS182"], ["CS170", "CS188", "EECS127"], ["CS152", "CS172", "CS191"]])
+@pytest.mark.parametrize("settings", [{"timeline": 4, "maxUnits": 16}, {"timeline": 3.5, "maxUnits": 18, "ap": {"calcBC": 5}}])
+def test_picked_electives_are_scheduled_by_the_rules(picked, settings):
+    result = build_degree_plan([], {**settings, "electives": picked})
+    planned = planned_codes(result)
+    assert set(picked) <= set(planned)
+    assert result["issues"] == []
+    # still meets the design requirement even when the picks have no design course
+    assert any(COURSES[c].get("design") for c in planned)
+
+
+def test_picked_electives_replace_the_focus_tracks_choices():
+    focus_only = planned_codes(build_degree_plan([], {"focus": "hardware"}))
+    picked = planned_codes(build_degree_plan([], {"focus": "hardware", "electives": ["CS186", "CS184"]}))
+    assert not {"CS186", "CS184"} & set(focus_only) and {"CS186", "CS184"} <= set(picked)
+    electives = lambda plan: [c for c in plan if COURSES[c]["category"] == "elective"]
+    assert len(electives(picked)) == len(electives(focus_only))
+
+
+def test_course_order_puts_picks_first_and_adds_a_design_course():
+    from backend.core import course_order
+    order = course_order("ai", ["CS170", "CS189"])
+    assert order[:2] == ["CS170", "CS189"] and COURSES[order[2]].get("design")
+    assert order[:2] == course_order("ai", ["CS170", "CS189", "CS170"])[:2]
+    assert course_order("ai", ["CS162"])[:2] == ["CS162", "CS189"]
+    assert sorted(course_order("ai", ["CS162"])) == sorted(COURSES)
