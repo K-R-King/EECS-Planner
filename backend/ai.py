@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+from functools import cache
 from pathlib import Path
 from typing import Literal
 
@@ -19,9 +20,18 @@ load_dotenv(Path(__file__).parent / ".env")
 
 logger = logging.getLogger("uvicorn.error")
 
-MODEL = "gemini-2.5-flash"
+# set GEMINI_MODEL to switch models (e.g. when Google retires this one) without changing the code
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+_client = None
+
+
+def get_client():
+    """The Gemini client, made on first use; None without an API key (the rest of the planner still works)."""
+    global _client
+    if _client is None and os.environ.get("GEMINI_API_KEY"):
+        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _client
 
 SYSTEM_PROMPT = """You are an experienced UC Berkeley EECS academic advisor.
 You are helping a prospective student plan their entire undergraduate degree.
@@ -65,6 +75,27 @@ class AdvisorReply(BaseModel):
     changes: list[PlanChange]
 
 
+def first_sentence(text):
+    match = re.match(r"(.+?[.!?])(\s|$)", text or "")
+    return match.group(1) if match else (text or "")
+
+
+@cache
+def prompt_catalog():
+    """
+    The catalog as the advisor sees it: no empty fields and only the first sentence of each description,
+    which keeps the prompt about 40% smaller (it's sent with every question).
+    """
+    courses = []
+    for course in catalog():
+        slim = {k: v for k, v in course.items()
+                if k not in ("description", "prereqs_verified", "class_hours") and v not in ([], False, None, "")}
+        if course["description"]:
+            slim["about"] = first_sentence(course["description"])
+        courses.append(slim)
+    return json.dumps(courses, separators=(",", ":"))
+
+
 def build_prompt(plan, question, settings, issues, history, already_done, feedback=None):
     schedule = {term: codes for term, codes in plan_to_schedule(plan)}
     past = "\n".join(f"{m['role']}: {m['text']}" for m in history[-6:]) or "(none)"
@@ -96,8 +127,9 @@ Current degree plan (semester -> courses):
 Current problems with the plan:
 {json.dumps(issues) if issues else "(none)"}
 
-Course catalog (code, title, units, category, prerequisites, terms offered):
-{json.dumps(catalog())}
+Course catalog (code, title, units, category, prerequisites, terms offered; design and upper_eecs
+appear only when true):
+{prompt_catalog()}
 
 Earlier conversation:
 {past}
@@ -110,7 +142,7 @@ RETRY_DELAYS = [1, 3]  # seconds to wait before retrying when Gemini is overload
 
 BUSY_MESSAGE = "The advisor is getting a lot of questions right now. Please try again in a moment."
 LIMIT_MESSAGE = "The advisor has hit its usage limit for now. Please wait a minute and try again."
-SETUP_MESSAGE = "The advisor isn't set up correctly. Check the Gemini API key in backend/.env."
+SETUP_MESSAGE = "The advisor isn't set up correctly. Check the GEMINI_API_KEY setting (backend/.env locally)."
 OFFLINE_MESSAGE = "Couldn't reach the advisor. Check your internet connection and try again."
 GENERIC_MESSAGE = "Something went wrong with the advisor. Please try again."
 
@@ -148,6 +180,11 @@ def get_ai_advice(plan, question, settings, issues, history, already_done, feedb
     Returns an AdvisorReply, or a friendly error message string.
     feedback: (earlier reply, problems its changes caused), to ask for a corrected answer.
     """
+    client = get_client()
+    if client is None:
+        logger.error("GEMINI_API_KEY isn't set, so the advisor is off")
+        return SETUP_MESSAGE
+
     for attempt in range(len(RETRY_DELAYS) + 1):
         try:
             response = client.models.generate_content(
@@ -191,6 +228,12 @@ def stream_ai_advice(plan, question, settings, issues, history, already_done):
     Yields ("delta", text) as the answer is written, then ("done", AdvisorReply)
     or ("error", friendly message).
     """
+    client = get_client()
+    if client is None:
+        logger.error("GEMINI_API_KEY isn't set, so the advisor is off")
+        yield "error", SETUP_MESSAGE
+        return
+
     for attempt in range(len(RETRY_DELAYS) + 1):
         raw = ""
         sent = ""

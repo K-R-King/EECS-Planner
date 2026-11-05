@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import time
 from collections import defaultdict, deque
 
@@ -20,7 +21,6 @@ ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in ALLOWED_ORIGINS.split(",") if o.strip()],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -29,19 +29,48 @@ app.add_middleware(
 # every advisor question costs a Gemini request, so cap them per visitor
 ADVISOR_LIMIT = int(os.environ.get("ADVISOR_REQUESTS_PER_MINUTE", "10"))
 RATE_LIMIT_MESSAGE = "You're asking questions faster than the advisor can keep up. Please wait a minute and try again."
+WINDOW = 60  # seconds
+
+# Behind a proxy, every request comes from the proxy's address, so the visitor's own address has to be
+# read from a header the proxy sets and the visitor can't: "true-client-ip" on Render (set by its
+# Cloudflare edge) or "x-real-ip" on Vercel. Never use X-Forwarded-For here: visitors can write their own.
+CLIENT_IP_HEADER = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
+
 _advisor_calls: dict[str, deque] = defaultdict(deque)
+_calls_lock = threading.Lock()
+_last_sweep = 0.0
+
+
+def client_ip(request: Request) -> str:
+    if CLIENT_IP_HEADER:
+        forwarded = request.headers.get(CLIENT_IP_HEADER, "").split(",")[0].strip()
+        if forwarded:
+            return forwarded
+    return request.client.host if request.client else "unknown"
+
+
+def _forget_idle_visitors(now: float):
+    """Drop visitors with no requests in the last minute, so the table doesn't grow forever."""
+    global _last_sweep
+    if now - _last_sweep < WINDOW:
+        return
+    _last_sweep = now
+    for ip in [ip for ip, calls in _advisor_calls.items() if not calls or now - calls[-1] > WINDOW]:
+        del _advisor_calls[ip]
 
 
 def advisor_allowed(request: Request) -> bool:
-    client_ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     now = time.monotonic()
-    calls = _advisor_calls[client_ip]
-    while calls and now - calls[0] > 60:
-        calls.popleft()
-    if len(calls) >= ADVISOR_LIMIT:
-        return False
-    calls.append(now)
-    return True
+    with _calls_lock:
+        _forget_idle_visitors(now)
+        calls = _advisor_calls[ip]
+        while calls and now - calls[0] > WINDOW:
+            calls.popleft()
+        if len(calls) >= ADVISOR_LIMIT:
+            return False
+        calls.append(now)
+        return True
 
 
 # ---------------- ROUTES ----------------

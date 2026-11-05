@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -21,8 +23,8 @@ def no_waiting(monkeypatch):
 def no_real_gemini(monkeypatch):
     def unexpected(**_):
         raise AssertionError("a test tried to call the real Gemini API")
-    monkeypatch.setattr(ai.client.models, "generate_content", unexpected)
-    monkeypatch.setattr(ai.client.models, "generate_content_stream", unexpected)
+    fake = SimpleNamespace(models=SimpleNamespace(generate_content=unexpected, generate_content_stream=unexpected))
+    monkeypatch.setattr(ai, "get_client", lambda: fake)
 
 
 def fake_gemini(monkeypatch, *outcomes):
@@ -40,7 +42,7 @@ def fake_gemini(monkeypatch, *outcomes):
             raise outcome
         return Response(outcome)
 
-    monkeypatch.setattr(ai.client.models, "generate_content", generate_content)
+    monkeypatch.setattr(ai.get_client().models, "generate_content", generate_content)
 
 
 def plan():
@@ -189,7 +191,7 @@ def fake_stream(monkeypatch, *chunks):
                 raise chunk
             yield Chunk(chunk)
 
-    monkeypatch.setattr(ai.client.models, "generate_content_stream", generate_content_stream)
+    monkeypatch.setattr(ai.get_client().models, "generate_content_stream", generate_content_stream)
 
 
 def stream(question="make it easier"):
@@ -223,3 +225,68 @@ def test_stream_retries_then_reports_friendly_error(monkeypatch):
     fake_stream(monkeypatch, server_error())
     events = stream()
     assert events == [{"type": "done", **main.error_reply(ai.BUSY_MESSAGE)}]
+
+
+# ---------------- setup, rate limit, prompt ----------------
+
+def test_planner_works_without_a_gemini_key(monkeypatch):
+    monkeypatch.setattr(ai, "get_client", lambda: None)
+    assert client.get("/courses").status_code == 200
+    assert plan()
+    reply = ask()
+    assert reply["error"] and reply["answer"] == ai.SETUP_MESSAGE
+    with client.stream("POST", "/advisor/stream", json={"plan": plan(), "question": "hi", "settings": SETTINGS}) as r:
+        events = [line for line in r.iter_lines() if line]
+    assert '"done"' in events[-1] and "isn't set up" in events[-1]
+
+
+def test_get_client_is_none_without_a_key(monkeypatch):
+    monkeypatch.undo()  # the real get_client
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(ai, "_client", None)
+    assert ai.get_client() is None
+
+
+def limited_ask(headers):
+    return client.post("/advisor", json={"plan": [], "question": "hi", "settings": SETTINGS}, headers=headers).json()
+
+
+def test_forged_forwarded_for_headers_dont_reset_the_limit(monkeypatch):
+    monkeypatch.setattr(main, "ADVISOR_LIMIT", 2)
+    monkeypatch.setattr(main, "CLIENT_IP_HEADER", "true-client-ip")
+    fake_gemini(monkeypatch, *[AdvisorReply(answer="ok", changes=[])] * 2)
+    replies = [limited_ask({"true-client-ip": "1.1.1.1", "x-forwarded-for": f"9.9.9.{i}"}) for i in range(3)]
+    assert [r["answer"] for r in replies] == ["ok", "ok", main.RATE_LIMIT_MESSAGE]
+
+
+def test_each_visitor_gets_their_own_limit(monkeypatch):
+    monkeypatch.setattr(main, "ADVISOR_LIMIT", 1)
+    monkeypatch.setattr(main, "CLIENT_IP_HEADER", "true-client-ip")
+    fake_gemini(monkeypatch, *[AdvisorReply(answer="ok", changes=[])] * 2)
+    assert limited_ask({"true-client-ip": "1.1.1.1"})["answer"] == "ok"
+    assert limited_ask({"true-client-ip": "2.2.2.2"})["answer"] == "ok"
+    assert limited_ask({"true-client-ip": "1.1.1.1"})["answer"] == main.RATE_LIMIT_MESSAGE
+
+
+def test_idle_visitors_are_forgotten(monkeypatch):
+    now = [1000.0]
+    monkeypatch.setattr(main.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(main, "_last_sweep", 0.0)
+    fake_gemini(monkeypatch, *[AdvisorReply(answer="ok", changes=[])] * 2)
+    limited_ask({})
+    assert len(main._advisor_calls) == 1
+    now[0] += 120
+    main._advisor_calls["someone else"].append(now[0])
+    limited_ask({})
+    assert "someone else" in main._advisor_calls and len(main._advisor_calls) == 2
+    now[0] += 120
+    main._forget_idle_visitors(now[0])
+    assert not main._advisor_calls
+
+
+def test_prompt_catalog_is_compact_but_complete():
+    import json
+    slim = json.loads(ai.prompt_catalog())
+    assert {c["code"] for c in slim} == {c["code"] for c in client.get("/courses").json()}
+    assert all("description" not in c for c in slim)
+    assert len(ai.prompt_catalog()) < 0.75 * len(json.dumps(client.get("/courses").json()))

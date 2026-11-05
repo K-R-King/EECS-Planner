@@ -14,7 +14,9 @@ import {
   type PlanResult,
   type Semester,
 } from "@/lib/api";
+import { rememberedTaken, rememberTaken, takeIncoming } from "@/lib/handoff";
 import { clearShareLink, loadSaved, readShareLink, save, shareLink } from "@/lib/share";
+import { fromPrereqsCode, toPrereqsCode } from "@/lib/suite";
 
 export const DEFAULT_SETTINGS: Settings = {
   timeline: 4, maxUnits: 16, summer: false, ap: {}, focus: "balanced", completed: [], picks: {},
@@ -40,8 +42,11 @@ export function usePlanner() {
   const [restored, setRestored] = useState(false);
   // only the newest plan request may update the page (settings can change quickly)
   const latestRequest = useRef(0);
+  // courses marked as taken on a sister site (?taken=...), added once the catalog and saved plan are in
+  const incomingTaken = useRef<string[] | null>(null);
 
   useEffect(() => {
+    incomingTaken.current = takeIncoming();
     fetchCatalog().then(setCatalog).catch(console.error);
     fetchApExams().then(setApExams).catch(console.error);
     fetchFocusTracks().then(setFocusTracks).catch(console.error);
@@ -53,25 +58,71 @@ export function usePlanner() {
       setRestoreCount((n) => n + 1);
     }
 
+    function restoreSaved() {
+      const saved = loadSaved();
+      if (saved) {
+        restore({ ...saved.settings, picks: { ...saved.picks, ...saved.settings.picks } }, saved.result, saved.edited);
+      }
+    }
+
     // a shared link wins over whatever this browser saved
     const shared = readShareLink();
     if (shared) {
-      clearShareLink();
       const sharedSettings = { ...DEFAULT_SETTINGS, ...shared.settings };
       reviewPlan(shared.plan, sharedSettings)
-        .then((checked) => restore(sharedSettings, checked, true))
-        .catch(console.error)
+        .then((checked) => {
+          clearShareLink();
+          restore(sharedSettings, checked, true);
+        })
+        .catch((err) => {
+          // keep the link (a refresh tries again) and this browser's own plan, which would otherwise
+          // be saved over with an empty one
+          console.error(err);
+          restoreSaved();
+          alert("Couldn't open the shared plan right now. Refresh the page to try again.");
+        })
         .finally(() => setRestored(true));
       return;
     }
 
-    Promise.resolve(loadSaved()).then((saved) => {
-      if (saved) {
-        restore({ ...saved.settings, picks: { ...saved.picks, ...saved.settings.picks } }, saved.result, saved.edited);
-      }
+    Promise.resolve().then(() => {
+      restoreSaved();
       setRestored(true);
     });
   }, []);
+
+  // add courses marked as taken on a sister site to "courses already taken"
+  useEffect(() => {
+    const codes = incomingTaken.current;
+    if (!restored || !catalog.length || !codes) return;
+    incomingTaken.current = null;
+    const known = new Set(catalog.map((c) => c.code));
+    const done = new Set([...settings.completed, ...(result?.ap_credit ?? [])]);
+    const added = [...new Set(codes.map(fromPrereqsCode))].filter((c) => known.has(c) && !done.has(c));
+    if (!added.length) return;
+
+    const next = { ...settings, completed: [...settings.completed, ...added] };
+    if (!result) {
+      // no plan yet, so just fill in the settings
+      setSettings(next);
+      setRestoreCount((n) => n + 1);
+      return;
+    }
+    const message = `You marked ${added.join(", ")} as taken on another EECS site. Rebuild your plan with them? Your edits will be lost.`;
+    if (edited && !window.confirm(message)) return;
+    if (generate(next, { confirmed: true })) setRestoreCount((n) => n + 1);
+    // runs once, when both are ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored, catalog]);
+
+  // tell the sister sites what's been taken, keeping courses this planner doesn't list
+  useEffect(() => {
+    if (!restored || !catalog.length) return;
+    const known = new Set(catalog.map((c) => c.code));
+    const own = [...settings.completed, ...(result?.ap_credit ?? [])].map(toPrereqsCode).filter((c): c is string => !!c);
+    const foreign = rememberedTaken().filter((c) => !known.has(fromPrereqsCode(c)));
+    rememberTaken([...own, ...foreign]);
+  }, [restored, catalog, settings.completed, result?.ap_credit]);
 
   // keep the plan across refreshes (only after restoring, so we don't overwrite it with nothing)
   useEffect(() => {
@@ -94,8 +145,8 @@ export function usePlanner() {
   }
 
   /** Rebuild the plan from settings. Returns false if the student kept their edited plan instead. */
-  function generate(next: Settings): boolean {
-    if (result && edited && !window.confirm("Changing settings rebuilds your plan, and your edits will be lost. Continue?")) {
+  function generate(next: Settings, { confirmed = false } = {}): boolean {
+    if (!confirmed && result && edited && !window.confirm("Changing settings rebuilds your plan, and your edits will be lost. Continue?")) {
       return false;
     }
 

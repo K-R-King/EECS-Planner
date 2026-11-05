@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
+import SuiteLinks from "@/components/SuiteLinks";
+import { siteUrl } from "@/lib/suite";
 import "./globals.css";
+
+const SITE_URL = siteUrl("planner");
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +18,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "UC Berkeley EECS Planner",
   description: "Generate a semester-by-semester roadmap for the UC Berkeley EECS major.",
+  openGraph: {
+    title: "UC Berkeley EECS Planner",
+    description: "Generate a semester-by-semester roadmap for the UC Berkeley EECS major.",
+    url: "/",
+    siteName: "EECS Hub",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
@@ -30,6 +43,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <SuiteLinks />
         <Analytics />
       </body>
     </html>

@@ -18,8 +18,21 @@ export const siteUrl = (id: SiteId) => SUITE.find((s) => s.id === id)!.url;
 // planner codes the Prereqs site names differently (it follows the EECS course pages)
 const PREREQS_CODES: Record<string, string> = { DATA100: "CSC100", CS182: "CSC182", CS191: "CSC191", EECS106A: "EEC106A" };
 
-// the Prereqs site's page for a planner course; placeholders like HSS1 or NATSCI have none
-export function prereqChainUrl(code: string) {
+const FROM_PREREQS = Object.fromEntries(Object.entries(PREREQS_CODES).map(([planner, prereqs]) => [prereqs, planner]));
+
+/** A planner course's code on the Prereqs site; placeholders like HSS1 or NATSCI have none. */
+export function toPrereqsCode(code: string) {
   if (!/^(CS|EECS|ELENG|MATH|PHYS|DATA)\d/.test(code)) return undefined;
-  return `${siteUrl("prereqs")}/#${PREREQS_CODES[code] ?? code.replace(/^ELENG/, "EE")}`;
+  return PREREQS_CODES[code] ?? code.replace(/^ELENG/, "EE");
+}
+
+/** A Prereqs-site code (the sister sites pass taken courses this way) in the planner's naming. */
+export function fromPrereqsCode(code: string) {
+  return FROM_PREREQS[code] ?? code.replace(/^EE(?=\d)/, "ELENG");
+}
+
+// the Prereqs site's page for a planner course
+export function prereqChainUrl(code: string) {
+  const prereqs = toPrereqsCode(code);
+  return prereqs && `${siteUrl("prereqs")}/#${prereqs}`;
 }
