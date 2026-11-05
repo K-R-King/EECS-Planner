@@ -420,6 +420,7 @@
         "Summer"
       ],
       "prereqs": [
+        "DATA8",
         "CS61A",
         [
           "MATH54",
@@ -427,7 +428,7 @@
         ]
       ],
       "prereq_text": "DATA C8 or STAT 20 with a C- or better, or Pass; and COMPSCI 61A, COMPSCI/DATA C88C, or ENGIN 7 with a C- or better, or Pass; Corequisite: MATH 54, 56, 110, ELENG 66, PHYSICS 89 or equivalent linear algebra (C- or better, or Pass, required if completed prior to Data C100).",
-      "description": "In this course, students will explore the data science lifecycle, including question formulation, data collection and cleaning, exploratory data analysis and visualization, statistical inference and prediction\u200b, and decision-making.\u200b This class will focus on quantitative critical thinking\u200b and key p.",
+      "description": "In this course, students will explore the data science lifecycle, including question formulation, data collection and cleaning, exploratory data analysis and visualization, statistical inference and prediction​, and decision-making.​ This class will focus on quantitative critical thinking​ and key p.",
       "class_hours": 5.0,
       "source": "https://www2.eecs.berkeley.edu/Courses/CSC100/"
     }

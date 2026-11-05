@@ -50,8 +50,8 @@ MANUAL_PREREQS = {
     # "61C."
     "CS152": ["CS61C"],
     # "DATA C8 or STAT 20; and COMPSCI 61A, C88C, or ENGIN 7; Corequisite: MATH 54, 56, 110, ELENG 66 ...";
-    # the planner has no Data 8 or corequisites, so linear algebra is scheduled first
-    "DATA100": ["CS61A", ["MATH54", "ELENG66"]],
+    # STAT 20 isn't in the planner, and it has no corequisites, so linear algebra is scheduled first
+    "DATA100": ["DATA8", "CS61A", ["MATH54", "ELENG66"]],
 }
 
 
