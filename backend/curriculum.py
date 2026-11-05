@@ -143,6 +143,33 @@ COURSES = {
     "DATA8":    {"title": "Foundations of Data Science",          "units": 4, "prereqs": [],                           "terms": ALL, "category": "elective", "min_year": 1, "manual_only": True},
 }
 
+# ---------- EXTRA COURSES (units only) ----------
+# Seminars, special topics and DeCals: they fill no requirement but count toward a semester's units and
+# the 120 total. Never planned automatically; students add them. Their units vary, so each offers a unit
+# choice (picked like a slot's course); the default is a typical load. Terms from the EECS course pages.
+def _units(low, high):
+    return [{"label": f"{u} unit{'' if u == 1 else 's'}", "units": u} for u in range(low, high + 1)]
+
+
+def _extra(title, units, low, high, terms):
+    return {"title": title, "units": units, "prereqs": [], "terms": terms, "category": "extra", "min_year": 1,
+            "manual_only": True, "options": _units(low, high) if high > low else []}
+
+
+COURSES.update({
+    "CS36":     _extra("CS Scholars Seminar",                                 2, 2, 2, BOTH),
+    "CS39":     _extra("Freshman/Sophomore Seminar",                          1, 1, 2, BOTH),
+    "CS84":     _extra("Sophomore Seminar",                                   1, 1, 2, ALL),
+    "CS194":    _extra("Special Topics",                                      4, 1, 4, ALL),
+    "CS198":    _extra("Directed Group Studies (DeCals)",                     2, 1, 4, BOTH),
+    "ELENG24":  _extra("Freshman Seminar",                                    1, 1, 1, BOTH),
+    "ELENG39":  _extra("Freshman/Sophomore Seminar",                          1, 1, 2, BOTH),
+    "ELENG84":  _extra("Sophomore Seminar",                                   1, 1, 2, ALL),
+    "ELENG98":  _extra("Directed Group Study (DeCals)",                       2, 1, 4, BOTH),
+    "ELENG194": _extra("Special Topics",                                      4, 1, 4, BOTH),
+    "ELENG198": _extra("Directed Group Study for Advanced Undergraduates (DeCals)", 2, 1, 4, BOTH),
+})
+
 
 # ---------- AP CREDIT (College of Engineering chart) ----------
 # units:      units granted (score >= min_score, default 3)

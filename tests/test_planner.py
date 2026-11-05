@@ -408,3 +408,36 @@ def test_picking_data_100_plans_data_8_first():
     order = [c for s in result["plan"] for c in codes(s)]
     assert "DATA8" in order and "DATA100" in order and order.index("DATA8") < order.index("DATA100")
     assert result["issues"] == []
+
+
+# ---------- extra courses: seminars, special topics, DeCals (units only) ----------
+
+EXTRAS = [c for c in COURSES if COURSES[c]["category"] == "extra"]
+
+
+def test_extra_courses_include_the_seminars_and_decals():
+    assert {"ELENG39", "CS39", "CS198", "ELENG98", "CS194"} <= set(EXTRAS)
+
+
+@pytest.mark.parametrize("settings", ALL_SETTINGS[::5])
+def test_extras_are_never_planned_automatically(settings):
+    planned = {c for s in build_degree_plan([], settings)["plan"] for c in codes(s)}
+    assert not planned & set(EXTRAS)
+
+
+def test_an_added_extra_counts_units_but_no_requirement():
+    plan = build_degree_plan([], {})["plan"]
+    before = review_plan(plan, {})
+    plan[1]["courses"].append({"code": "ELENG39"})
+    after = review_plan(plan, {})
+    assert after["total_units"] == before["total_units"] + 1
+    assert after["upper_eecs_units"] == before["upper_eecs_units"]
+    assert not any(i["course"] == "ELENG39" for i in after["issues"])
+    assert not any("ELENG39" in w for w in after["warnings"])  # never "missing"
+
+
+def test_extra_units_can_be_chosen():
+    plan = build_degree_plan([], {})["plan"]
+    plan[1]["courses"].append({"code": "CS198"})
+    base = review_plan(plan, {})["total_units"]
+    assert review_plan(plan, {"picks": {"CS198": "4 units"}})["total_units"] == base + 2

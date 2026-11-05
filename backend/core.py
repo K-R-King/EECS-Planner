@@ -321,7 +321,7 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
 
     warnings = []
 
-    missing = [c for c in COURSES if COURSES[c]["category"] != "elective" and c not in seen and c not in waived]
+    missing = [c for c in COURSES if COURSES[c]["category"] not in ("elective", "extra") and c not in seen and c not in waived]
     if missing:
         warnings.append(f"Required courses missing from your plan: {', '.join(missing)}.")
     if upper_eecs < UPPER_EECS_UNITS:
