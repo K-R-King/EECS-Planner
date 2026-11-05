@@ -53,6 +53,9 @@ MANUAL_PREREQS = {
     # STAT 20 isn't in the planner, and it has no corequisites, so linear algebra is scheduled first
     "DATA100": ["DATA8", "CS61A", ["MATH54", "ELENG66"]],
 }
+# seminars, special topics and DeCals: requirements depend on each term's topic ("priority given to
+# freshmen", "2.0 GPA; 60 units"), not on courses
+MANUAL_PREREQS.update({code: [] for code in COURSES if COURSES[code]["category"] == "extra"})
 
 
 def page_code(code):

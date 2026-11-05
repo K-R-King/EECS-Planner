@@ -1,6 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-export type Category = "core" | "hss" | "ethics" | "elective";
+// extra: seminars, special topics and DeCals, which only add units
+export type Category = "core" | "hss" | "ethics" | "elective" | "extra";
 
 export interface Course {
   code: string;

@@ -66,7 +66,7 @@ export default function CourseCatalog({ catalog, result, onRemove }: Props) {
         />
 
         <div className="flex flex-wrap gap-1.5">
-          {(["all", "core", "elective", "hss", "ethics"] as const).map((cat) => (
+          {(["all", "core", "elective", "hss", "ethics", "extra"] as const).map((cat) => (
             <button
               key={cat}
               type="button"

@@ -208,6 +208,29 @@ test("a community college course counts as the Berkeley course the student picks
   await expect(course(page, "R1A")).toBeVisible();
 });
 
+test("seminars and DeCals can be added for units only", async ({ page }) => {
+  await generate(page);
+  const term = (await page.locator("[data-term]").nth(1).getAttribute("data-term"))!;
+  const total = async () => Number((await page.getByText("Units toward graduation").locator("xpath=..").innerText()).match(/(\d+)\s*\/\s*120/)![1]);
+  const before = await total();
+
+  await semester(page, term).getByRole("button", { name: "+ Add course" }).click();
+  await semester(page, term).getByPlaceholder(/Search courses/).fill("eleng 39");
+  await semester(page, term).getByRole("button", { name: /^ELENG39/ }).click();
+  const seminar = semester(page, term).locator('[data-course="ELENG39"]');
+  await expect(seminar).toContainText("Extra 1u");
+  await expect.poll(total).toBe(before + 1);
+  await expect(seminar).not.toHaveClass(/bg-red-50/);  // no requirement problem
+
+  // a DeCal's units can be changed (2 by default)
+  await semester(page, term).getByRole("button", { name: "+ Add course" }).click();
+  await semester(page, term).getByPlaceholder(/Search courses/).fill("cs 198");
+  await semester(page, term).getByRole("button", { name: /^CS198/ }).click();
+  await expect.poll(total).toBe(before + 3);
+  await semester(page, term).locator('[data-course="CS198"]').getByRole("combobox", { name: /Choose a course for/ }).selectOption("4 units");
+  await expect.poll(total).toBe(before + 5);
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");

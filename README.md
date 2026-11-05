@@ -20,6 +20,7 @@ Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS st
 - **Requirement checks:** prerequisites, term offerings (real Fall/Spring/Summer offerings from the EECS department's course pages), unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, 2 upper-division H/SS courses, and the design course.
 - **Focus tracks:** pick AI/ML, Systems, Theory, Hardware, or Security and the electives follow.
 - **Courses already taken:** courses taken earlier count as done. For a community college course, type it ("ENGL C1000") and pick the Berkeley course it counts as; the page links to [ASSIST](https://assist.org) to check, since equivalencies differ by college. Search accepts codes with or without spaces.
+- **Seminars, special topics and DeCals:** add them with "+ Add course" (e.g. "eleng 39", "cs 198"). They're marked *Extra*: they count toward a semester's units and the 120 total, but fill no requirement, and you pick their units on the card. The planner never adds them on its own.
 - **Your electives:** electives picked on [EECS Electives](https://eecs-electives.vercel.app) (or passed as `?electives=CS189.CS162`) are scheduled before the focus track's, still following every rule; one that doesn't fit is flagged in the settings.
 - **Real choices:** pick the actual natural science course and H/SS category for each placeholder slot.
 - **Edit freely:** drag and drop (or "Move to…" on phones), add from the course catalog, remove, undo. Hover a course to see what it needs first and what it unlocks.

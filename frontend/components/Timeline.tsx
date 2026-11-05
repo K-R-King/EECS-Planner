@@ -33,7 +33,8 @@ function slotChoices(query: string, catalog: CatalogCourse[], plan: Semester[], 
   const inPlan = new Set(plan.flatMap((s) => s.courses.map((c) => c.code)));
   const slots = catalog.filter((c) => c.options.length > 0);
   const labels = [...new Set(slots.flatMap((s) => s.options.map((o) => o.label)))]
-    .filter((label) => !/ course$/.test(label) && compact(label).includes(q));
+    // generic choices ("Historical Studies course") and unit counts ("2 units") aren't courses
+    .filter((label) => !/ course$/.test(label) && !/^\d+ units?$/.test(label) && compact(label).includes(q));
   return labels.map((label) => {
     const holders = slots.filter((s) => s.options.some((o) => o.label === label));
     const open = holders.filter((s) => inPlan.has(s.code));
@@ -348,7 +349,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                                 aria-label={`Choose a course for ${course.title}`}
                                 className="w-full max-w-full truncate rounded bg-transparent text-xs text-slate-500 dark:text-slate-400 outline-none hover:text-berkeley print:appearance-none"
                               >
-                                <option value="">{course.title}: choose a course…</option>
+                                <option value="">{course.title}: {course.category === "extra" ? `${course.units} units (change…)` : "choose a course…"}</option>
                                 {options.map((o) => (
                                   <option key={o.label} value={o.label}>
                                     {o.label}{o.units !== undefined && ` (${o.units}u)`}{o.upper_hss && " · also upper-div H/SS"}
