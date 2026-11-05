@@ -92,6 +92,7 @@ export interface PlannerSettings {
   timeline: number;
   maxUnits: number;
   summer: boolean;
+  winter: boolean;             // winter breaks for community college intersession courses
   ap: Record<string, number>;  // AP exam key -> score (3-5)
   focus: string;               // key from /focus-tracks
   completed: string[];         // course codes already taken (community college, dual enrollment)

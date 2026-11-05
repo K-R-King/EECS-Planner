@@ -56,7 +56,7 @@ function slotChoices(query: string, catalog: CatalogCourse[], plan: Semester[], 
 const TOTAL_UNITS = 120;
 const UPPER_EECS_UNITS = 20;
 
-const SEASON_ICONS: Record<string, string> = { Fall: "🍂", Spring: "🌱", Summer: "☀️" };
+const SEASON_ICONS: Record<string, string> = { Fall: "🍂", Winter: "❄️", Spring: "🌱", Summer: "☀️" };
 
 /** Remove `code` from wherever it is, then (optionally) put it in `toTerm`. */
 export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: string, toTerm: string | null): Semester[] {
@@ -250,7 +250,8 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {semesters.map((semester) => {
               const season = semester.term.split(" ")[2];
-              const isSummer = season === "Summer";
+              // summers and winter breaks are optional, start empty and have no full-time minimum
+              const isBreak = season === "Summer" || season === "Winter";
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
               const pickerOpen = picker?.term === semester.term;
@@ -278,13 +279,13 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                     move(e.dataTransfer.getData(DRAG_TYPE), semester.term);
                   }}
                   className={`rounded-2xl p-5 shadow-sm transition print:shadow-none ${
-                    isSummer ? "bg-sky-50/70 dark:bg-sky-950/30 md:col-span-2" : "bg-white dark:bg-slate-900"
+                    isBreak ? "bg-sky-50/70 dark:bg-sky-950/30 md:col-span-2" : "bg-white dark:bg-slate-900"
                   } ${
                     isTarget
                       ? "scale-[1.01] ring-2 ring-gold shadow-lg"
                       : termIssues.length
                         ? "ring-2 ring-red-300"
-                        : isSummer
+                        : isBreak
                           ? "border border-dashed border-sky-300"
                           : "ring-1 ring-slate-200 dark:ring-slate-700 hover:shadow-md"
                   }`}
@@ -295,7 +296,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                     <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800 dark:text-slate-100">
                       <span>{SEASON_ICONS[season]}</span>
                       {season}
-                      {isSummer && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">optional</span>}
+                      {isBreak && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">optional</span>}
                     </h3>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                       termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
@@ -305,7 +306,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                   </div>
 
                   {/* Courses */}
-                  <ul className={`space-y-2 ${isSummer ? "grid gap-2 space-y-0 sm:grid-cols-2" : "min-h-12"}`}>
+                  <ul className={`space-y-2 ${isBreak ? "grid gap-2 space-y-0 sm:grid-cols-2" : "min-h-12"}`}>
                     {semester.courses.map((course) => {
                       const style = CATEGORY_STYLES[course.category];
                       const problem = issues.find((i) => i.term === semester.term && i.course === course.code);
@@ -392,8 +393,12 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                       );
                     })}
                   </ul>
-                  {isSummer && semester.courses.length === 0 && (
-                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">Drag a course here to take it over the summer</p>
+                  {isBreak && semester.courses.length === 0 && (
+                    <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+                      {season === "Winter"
+                        ? "Berkeley has no winter session: add a lower-division course you'll take at a community college over winter break"
+                        : "Drag a course here to take it over the summer"}
+                    </p>
                   )}
 
                   {/* Add course */}

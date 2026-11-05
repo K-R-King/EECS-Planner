@@ -19,7 +19,7 @@ import { clearShareLink, loadSaved, readShareLink, save, shareLink } from "@/lib
 import { fromPrereqsCode, toPrereqsCode } from "@/lib/suite";
 
 export const DEFAULT_SETTINGS: Settings = {
-  timeline: 4, maxUnits: 16, summer: false, ap: {}, focus: "balanced", completed: [], picks: {}, electives: [], transfers: [],
+  timeline: 4, maxUnits: 16, summer: false, winter: false, ap: {}, focus: "balanced", completed: [], picks: {}, electives: [], transfers: [],
 };
 
 /** Electives picked on EECS Electives (?electives=CS189.CS162, Prereqs codes), removed from the address bar. */

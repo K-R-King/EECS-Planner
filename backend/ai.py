@@ -46,7 +46,8 @@ Rules for changes:
 - action is "move", "add", or "remove". Use course codes exactly as in the catalog (e.g. "CS70").
 - to_term must be one of the plan's semesters, exactly as written (e.g. "Year 2 Fall").
   Only use summer sessions if the plan already has them (e.g. "Year 1 Summer");
-  summers have no 12-unit minimum.
+  summers have no 12-unit minimum. Likewise winter breaks ("Year 1 Winter"), which are community
+  college intersessions: only lower-division core or H/SS courses can go there.
 - A course must come after all of its prerequisites, only in a term it's offered,
   and every semester must stay at or under the student's unit limit.
 - Never remove a required course (category core, hss, or ethics); move it instead.

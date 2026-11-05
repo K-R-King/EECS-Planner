@@ -231,6 +231,36 @@ test("seminars and DeCals can be added for units only", async ({ page }) => {
   await expect.poll(total).toBe(before + 5);
 });
 
+test("winter breaks hold lower-division courses only", async ({ page }) => {
+  await generate(page);
+  await page.getByLabel(/Include winter breaks/).check();
+  const winter = semester(page, "Year 1 Winter");
+  await expect(winter).toBeVisible();
+  await expect(winter.locator("[data-course]")).toHaveCount(0);  // starts empty
+  await expect(winter).toContainText("Berkeley has no winter session");
+
+  // a breadth course can go there (no 12-unit minimum)...
+  await moveMenu(page, "HSS1").selectOption("Year 1 Winter");
+  await expect(winter.locator('[data-course="HSS1"]')).toBeVisible();
+  await expect(winter.locator('[data-course="HSS1"]')).not.toHaveClass(/bg-red-50/);
+  await expect(winter).not.toHaveClass(/ring-red-300/);
+
+  // ...but an upper-division elective can't
+  const elective = await page.locator("[data-course]").evaluateAll((els) =>
+    els.map((e) => e.getAttribute("data-course")!).find((c) => /^CS1\d\d/.test(c))!);
+  await moveMenu(page, elective).selectOption("Year 1 Winter");
+  await expect(winter.locator(`[data-course="${elective}"]`)).toContainText("winter");
+});
+
+test("ENGIN 157AC can fill an upper-division H/SS slot", async ({ page }) => {
+  await generate(page);
+  const term = await termOf(page, "HSS3");
+  await semester(page, term).getByRole("button", { name: "+ Add course" }).click();
+  await semester(page, term).getByPlaceholder(/Search courses/).fill("engin 157ac");
+  await semester(page, term).getByRole("button", { name: /ENGIN 157AC.*Upper-Division H\/SS Breadth slot/ }).click();
+  await expect(course(page, "HSS3").getByRole("combobox", { name: /Choose a course for/ })).toHaveValue("ENGIN 157AC");
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");
