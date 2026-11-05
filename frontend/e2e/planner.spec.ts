@@ -107,6 +107,43 @@ test("a share link opens the same plan", async ({ page, browser }) => {
   await expect(semester(other, to).locator('[data-course="CS188"]')).toBeVisible();
 });
 
+test("a share link that can't be opened keeps the plan this browser saved", async ({ page }) => {
+  await generate(page);
+  const shared = await otherTerm(page, "CS188");
+  await moveMenu(page, "CS188").selectOption(shared);
+  await page.getByRole("button", { name: /Share link/ }).click();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+
+  // this browser's own plan moves on, then the backend fails while the link opens
+  const own = await otherTerm(page, "CS188");
+  await moveMenu(page, "CS188").selectOption(own);
+  await expect(semester(page, own).locator('[data-course="CS188"]')).toBeVisible();
+  await page.route(`${API}/review-plan`, (route) => route.fulfill({ status: 500 }));
+  const alerted = page.waitForEvent("dialog").then(async (d) => { const m = d.message(); await d.dismiss(); return m; });
+  await page.goto("about:blank");  // only the #hash differs, so leave first to really load the link
+  await page.goto(link);
+  expect(await alerted).toContain("Couldn't open the shared plan");
+  await expect(semester(page, own).locator('[data-course="CS188"]')).toBeVisible();
+  expect(page.url()).toContain("#plan=");
+
+  // once the backend is back, a refresh opens the shared plan
+  await page.unroute(`${API}/review-plan`);
+  await page.reload();
+  await expect(semester(page, shared).locator('[data-course="CS188"]')).toBeVisible();
+});
+
+test("courses marked as taken on a sister site are filled in", async ({ page }) => {
+  // EE64 is the Prereqs site's name for ELENG 64; MATH55 isn't in the planner, so it's passed along
+  await page.goto("/?taken=CS61A.EE64.MATH55");
+  await expect(page.getByText("2 taken")).toBeVisible();
+  expect(new URL(page.url()).search).toBe("");
+  await page.getByRole("button", { name: /Courses already taken/ }).click();
+  await expect(page.getByRole("button", { name: "Remove CS61A from courses taken" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove ELENG64 from courses taken" })).toBeVisible();
+  const remembered = await page.evaluate(() => JSON.parse(localStorage.getItem("eecs-suite:taken") ?? "[]"));
+  expect(remembered.sort()).toEqual(["CS61A", "EE64", "MATH55"]);
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");

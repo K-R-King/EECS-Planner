@@ -11,9 +11,10 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.4
-      # behind Render's proxy, use each visitor's real address (the advisor limit is per visitor)
-      - key: FORWARDED_ALLOW_IPS
-        value: "*"
+      # the advisor limit is per visitor: read each visitor's address from the header Render's Cloudflare
+      # edge sets (not X-Forwarded-For, which visitors can fake)
+      - key: CLIENT_IP_HEADER
+        value: true-client-ip
       - key: GEMINI_API_KEY
         sync: false   # Render asks for it during setup
       - key: ALLOWED_ORIGINS

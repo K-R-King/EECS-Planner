@@ -17,11 +17,10 @@ Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS st
 
 - **Full degree plan:** every requirement for 2026–27 entering EECS students (lower-division math, physics, CS, ELENG 64/66, natural science, Reading & Composition, H/SS breadth, ethics, and upper-division electives) spread across 3, 3.5, or 4 years, with optional summer sessions.
 - **AP credit by score:** all AP exams, following the College of Engineering chart, including unit caps and the 2-course H/SS limit.
-- **Requirement checks:** prerequisites, term offerings, unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, and the design course.
+- **Requirement checks:** prerequisites, term offerings (real Fall/Spring/Summer offerings from the EECS department's course pages), unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, 2 upper-division H/SS courses, and the design course.
 - **Focus tracks:** pick AI/ML, Systems, Theory, Hardware, or Security and the electives follow.
 - **Courses already taken:** community college or dual-enrollment courses count as done.
 - **Real choices:** pick the actual natural science course and H/SS category for each placeholder slot.
-- **Requirement checks:** also 2 upper-division H/SS courses; real Fall/Spring/Summer offerings pulled from the EECS department's course pages.
 - **Edit freely:** drag and drop (or "Move to…" on phones), add from the course catalog, remove, undo. Hover a course to see what it needs first and what it unlocks.
 - **AI advisor:** answers questions as it writes (streamed), and proposes plan edits ("make Year 2 lighter") that you accept or reject.
 - **Keep it:** plans are saved in your browser, can be shared as a link, and print cleanly to PDF.
@@ -59,7 +58,7 @@ cd frontend
 npx playwright test                 # browser: drag and drop, undo, saving, share links, advisor approval, dark mode, accessibility
 ```
 
-The backend tests build a plan for every combination of timeline, unit limit, AP credit, and summer setting and check it against every rule. The browser tests drive the real page against the real backend; Gemini is faked in both, so no API key is needed. Locally, Playwright reuses running servers and your installed Chrome. GitHub Actions runs everything, plus the frontend typecheck, lint, and build, on every push.
+The backend tests build a plan for every combination of timeline, unit limit, AP credit, and summer setting and check it against every rule. The browser tests drive the real page against the real backend; Gemini is faked in both, so no API key is needed (without one, the planner works and only the advisor is off). Locally, Playwright reuses running servers and your installed Chrome. GitHub Actions runs everything, plus the frontend typecheck, lint, and build, on every push.
 
 ## Updating course offerings
 
@@ -100,15 +99,20 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 
 **3. Connect them:** in Render, set `ALLOWED_ORIGINS` to your Vercel URL and redeploy.
 
-**Or: backend on Vercel too.** Instead of Render, the backend can be its own Vercel project deployed from the repo root (`vercel.json` and `app.py` set it up). Add `GEMINI_API_KEY` and `ALLOWED_ORIGINS` as its environment variables. `.vercelignore` replaces `.gitignore` for these uploads, so it also keeps `.env` files out. Vercel runs several short-lived copies of the backend, so the per-visitor advisor limit applies per copy.
+**Or: backend on Vercel too.** Instead of Render, the backend can be its own Vercel project deployed from the repo root (`vercel.json` and `app.py` set it up). Add `GEMINI_API_KEY`, `ALLOWED_ORIGINS`, and `CLIENT_IP_HEADER=x-real-ip` (so the advisor limit is per visitor) as its environment variables. `.vercelignore` replaces `.gitignore` for these uploads, so it also keeps `.env` files out. Vercel runs several short-lived copies of the backend, so the per-visitor advisor limit applies per copy.
 
 Things to know about the free tiers:
 - **Render sleeps** after about 15 idle minutes; the next visitor waits up to a minute (the page says so).
-- **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10).
+- **Switching models:** the advisor uses `gemini-2.5-flash`. Set `GEMINI_MODEL` to use another one (for example when Google retires it), no code change needed.
+- **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10), counted by the address in `CLIENT_IP_HEADER` (`render.yaml` sets it to `true-client-ip`).
 
 ## Keeping course data fresh
 
 A GitHub Action (`.github/workflows/refresh-course-data.yml`) re-reads the EECS course pages on the 1st of every month and, if anything changed, opens a pull request with the test results. To let it open pull requests, enable **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests**. You can also run it any time from the Actions tab.
+
+## Across the EECS sites
+
+Courses marked as taken on EECS Prereqs or EECS Electives travel with the links between the sites (`?taken=CS61A.EE64`) and are added to **Courses already taken**; the planner translates the Prereqs codes (EE64 → ELENG64). `frontend/lib/handoff.ts` and `frontend/components/SuiteLinks.tsx` are the same in all five sites, so change them in all five. The site also has a link preview image (`frontend/app/opengraph-image.tsx`), a sitemap and a robots file.
 
 ## API
 

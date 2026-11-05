@@ -30,6 +30,7 @@ import json
 from pathlib import Path
 
 CATALOG_YEAR = "2026–27"  # the rules below are for students entering Fall 2026
+# (the EECS Hub repeats this in lib/tools.ts; update both when the next catalog comes out)
 TOTAL_UNITS = 120
 
 # Older and alternate names students (or the advisor) may use -> our codes
