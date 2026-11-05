@@ -182,6 +182,32 @@ test("add course finds codes typed with a space, and slot choices like ENGIN 125
   await expect(ethics).toContainText("3u");
 });
 
+test("a community college course counts as the Berkeley course the student picks", async ({ page }) => {
+  await generate(page);
+  await expect(course(page, "R1A")).toBeVisible();
+  await page.getByRole("button", { name: /Courses already taken/ }).click();
+
+  // the search also finds codes typed with a space
+  await page.getByLabel("Search courses you've already taken").fill("cs 61a");
+  await expect(page.getByRole("button", { name: /^CS61A/ })).toBeVisible();
+  await page.getByLabel("Search courses you've already taken").fill("");
+
+  await page.getByLabel("Community college course").fill("ENGL C1000");
+  await page.getByLabel("Berkeley course it counts as").selectOption("R1A");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove R1A from courses taken" })).toHaveText(/ENGL C1000 → R1A/);
+  await expect(course(page, "R1A")).toHaveCount(0);
+
+  // it's saved with the plan
+  await page.reload();
+  await page.getByRole("button", { name: /Courses already taken/ }).click();
+  await expect(page.getByRole("button", { name: "Remove R1A from courses taken" })).toHaveText(/ENGL C1000 → R1A/);
+
+  // removing it puts R1A back
+  await page.getByRole("button", { name: "Remove R1A from courses taken" }).click();
+  await expect(course(page, "R1A")).toBeVisible();
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");
