@@ -8,6 +8,16 @@ from backend.curriculum import (
 
 FULL_TIME_UNITS = 12
 SUMMER_UNITS = 8  # planner preference: at most two courses in a summer session
+# Berkeley has no winter session: winter breaks are for community college intersessions, which offer
+# lower-division courses only. Winters are never filled automatically.
+BREAKS = ("Summer", "Winter")
+WINTER_CATEGORIES = ("core", "hss")
+
+
+def winter_ok(code):
+    """Lower-division courses a community college intersession could cover (no upper-division EECS)."""
+    info = COURSES[code]
+    return info["category"] in WINTER_CATEGORIES and not info.get("upper_eecs")
 
 
 def scheduling_passes(hss_per_term):
@@ -67,13 +77,14 @@ def can_take(course, completed, season, year):
     )
 
 
-def build_terms(timeline_years: float, summer=False):
+def build_terms(timeline_years: float, summer=False, winter=False):
     """
     Converts:
     4.0 -> 8 semesters
     3.5 -> 7 semesters
     3.0 -> 6 semesters
-    With summer=True, a summer session follows every spring except the last term.
+    With summer=True, a summer session follows every spring except the last term;
+    with winter=True, a winter break follows every fall except the last term.
     """
 
     semesters = int(timeline_years * 2)
@@ -90,6 +101,8 @@ def build_terms(timeline_years: float, summer=False):
         terms.append(term)
         if summer and term.endswith("Spring") and i < len(base_terms) - 1:
             terms.append(term.replace("Spring", "Summer"))
+        if winter and term.endswith("Fall") and i < len(base_terms) - 1:
+            terms.append(term.replace("Fall", "Winter"))
     return terms
 
 
@@ -265,7 +278,7 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
     prior = set(credited) | set(completed)
     done = set(prior)   # finished before the current semester
     seen = set(prior)   # anywhere so far, to catch duplicates
-    regular_terms = [t for t, _ in schedule if term_season(t) != "Summer"]
+    regular_terms = [t for t, _ in schedule if term_season(t) not in BREAKS]
     unneeded = []
 
     for term, codes in schedule:
@@ -282,7 +295,9 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
                 issues.append({"term": term, "course": code, "message": f"You've already taken {code}."})
             elif code in seen:
                 issues.append({"term": term, "course": code, "message": f"{code} is already in your plan."})
-            elif season not in info["terms"]:
+            elif season == "Winter" and not winter_ok(code):
+                issues.append({"term": term, "course": code, "message": f"{code} can't go in a winter break: Berkeley has no winter session, and community colleges offer only lower-division courses."})
+            elif season != "Winter" and season not in info["terms"]:
                 issues.append({"term": term, "course": code, "message": f"{code} is only offered in {' & '.join(info['terms'])}."})
             else:
                 missing = [prereq_label(p) for p in info["prereqs"] if not prereq_met(p, done)]
@@ -296,7 +311,7 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
 
         if units > max_units:
             issues.append({"term": term, "course": None, "message": f"{units} units is over your {max_units}-unit limit."})
-        elif units < FULL_TIME_UNITS and season != "Summer" and regular_terms and term != regular_terms[-1]:
+        elif units < FULL_TIME_UNITS and season not in BREAKS and regular_terms and term != regular_terms[-1]:
             # students finishing their degree may take fewer than 12 units in their final semester
             issues.append({"term": term, "course": None, "message": f"{units} units is below the {FULL_TIME_UNITS}-unit full-time minimum."})
 
@@ -420,9 +435,10 @@ def build_degree_plan(completed_courses, settings=None, suggest=True, fill_summe
     completed = set(prior) | set(credited) | set(waived_by(picks))
     units_done = ap_units + sum(units_of(c, picks) for c in prior)
 
-    terms = build_terms(timeline, summer)
-    regular = [t for t in terms if term_season(t) != "Summer"]
-    planning = terms if fill_summers else regular
+    terms = build_terms(timeline, summer, bool((settings or {}).get("winter")))
+    regular = [t for t in terms if term_season(t) not in BREAKS]
+    # winters always start empty (students add community college courses themselves)
+    planning = [t for t in terms if term_season(t) != "Winter"] if fill_summers else regular
 
     def capacity(term):
         return min(SUMMER_UNITS, max_units) if term_season(term) == "Summer" else max_units

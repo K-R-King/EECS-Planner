@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 from backend.core import normalize_code
 from backend.curriculum import AP_EXAMS, COURSES, FOCUS_TRACKS
 
-Term = Annotated[str, StringConstraints(pattern=r"^Year [1-4] (Fall|Spring|Summer)$")]
+Term = Annotated[str, StringConstraints(pattern=r"^Year [1-4] (Fall|Winter|Spring|Summer)$")]
 CourseCode = Annotated[str, StringConstraints(min_length=1, max_length=20)]
 
 
@@ -19,6 +19,7 @@ class Settings(BaseModel):
     timeline: Literal[3, 3.5, 4] = 4
     maxUnits: int = Field(16, ge=12, le=20)
     summer: bool = False
+    winter: bool = False  # winter breaks for community college intersession courses
     ap: dict[str, Annotated[int, Field(ge=1, le=5)]] = {}
     focus: str = "balanced"
     completed: list[CourseCode] = Field(default=[], max_length=60)

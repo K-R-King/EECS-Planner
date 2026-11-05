@@ -62,7 +62,9 @@ _HSS_CATEGORIES = [
     "American Cultures course",
 ]
 HSS_OPTIONS = _options(*_HSS_CATEGORIES)
-UPPER_HSS_OPTIONS = _options("ENGIN 125", "ENGIN 185", "BIOENG 100", "PHILOS 121",
+# ENGIN 157AC (Engineering, The Environment, and Society; also IAS 157AC) is an upper-division American
+# Cultures course; the catalog says it can't count toward engineering technical units
+UPPER_HSS_OPTIONS = _options("ENGIN 125", "ENGIN 157AC", "ENGIN 185", "BIOENG 100", "PHILOS 121",
                              *[f"Upper-division {c}" for c in _HSS_CATEGORIES])
 # Ethics courses marked * on the EECS page also satisfy an upper-division H/SS course.
 # CS 195 is 1 unit; the others' units aren't on the page (3 is assumed, check the catalog).

@@ -140,6 +140,19 @@ export default function PlannerSettings({ initial, apExams, focusTracks, catalog
               onChange={(e) => update({ summer: e.target.checked })}
             />
           </label>
+
+          <label className="mt-2 flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-sm transition hover:border-berkeley-light">
+            <span>
+              <span className="font-medium text-slate-700 dark:text-slate-200">❄️ Include winter breaks</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">Empty winters for community college intersession courses (lower-division only)</span>
+            </span>
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-berkeley"
+              checked={settings.winter}
+              onChange={(e) => update({ winter: e.target.checked })}
+            />
+          </label>
         </div>
 
         {/* Units */}

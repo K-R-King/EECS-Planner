@@ -441,3 +441,41 @@ def test_extra_units_can_be_chosen():
     plan[1]["courses"].append({"code": "CS198"})
     base = review_plan(plan, {})["total_units"]
     assert review_plan(plan, {"picks": {"CS198": "4 units"}})["total_units"] == base + 2
+
+
+# ---------- winter breaks (community college intersessions) ----------
+
+def test_winter_breaks_follow_each_fall_but_the_last():
+    from backend.core import build_terms
+    terms = build_terms(4, winter=True)
+    assert [t for t in terms if t.endswith("Winter")] == ["Year 1 Winter", "Year 2 Winter", "Year 3 Winter", "Year 4 Winter"]
+    assert terms.index("Year 1 Winter") == terms.index("Year 1 Fall") + 1
+    assert build_terms(3.5, summer=True, winter=True)[-1] == "Year 4 Fall"
+
+
+@pytest.mark.parametrize("settings", ALL_SETTINGS[::6])
+def test_winters_start_empty_and_change_nothing_else(settings):
+    plain = build_degree_plan([], settings)
+    with_winter = build_degree_plan([], {**settings, "winter": True})
+    winters = [s for s in with_winter["plan"] if s["term"].endswith("Winter")]
+    assert winters and all(not s["courses"] for s in winters)
+    assert [s for s in with_winter["plan"] if not s["term"].endswith("Winter")] == plain["plan"]
+    assert with_winter["issues"] == plain["issues"]
+
+
+def test_lower_division_courses_can_move_to_winter_but_upper_division_cannot():
+    settings = {"winter": True}
+    plan = build_degree_plan([], settings)["plan"]
+    winter = next(s for s in plan if s["term"] == "Year 1 Winter")
+    winter["courses"] = [{"code": "HSS1"}, {"code": "CS170"}]
+    for s in plan:
+        if s is not winter:
+            s["courses"] = [c for c in s["courses"] if c["code"] not in ("HSS1", "CS170")]
+    issues = review_plan(plan, settings)["issues"]
+    assert any(i["course"] == "CS170" and "winter" in i["message"] for i in issues)
+    assert not any(i["course"] == "HSS1" for i in issues)
+    assert not any(i["term"] == "Year 1 Winter" and i["course"] is None for i in issues)  # no 12-unit minimum
+
+
+def test_engin_157ac_is_an_upper_division_hss_choice():
+    assert any(o["label"] == "ENGIN 157AC" for o in COURSES["HSS3"]["options"])

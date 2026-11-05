@@ -15,7 +15,7 @@ Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS st
 
 ## Features
 
-- **Full degree plan:** every requirement for 2026–27 entering EECS students (lower-division math, physics, CS, ELENG 64/66, natural science, Reading & Composition, H/SS breadth, ethics, and upper-division electives) spread across 3, 3.5, or 4 years, with optional summer sessions.
+- **Full degree plan:** every requirement for 2026–27 entering EECS students (lower-division math, physics, CS, ELENG 64/66, natural science, Reading & Composition, H/SS breadth, ethics, and upper-division electives) spread across 3, 3.5, or 4 years, with optional summer sessions and winter breaks (Berkeley has no winter session, so winters are for lower-division community college intersession courses).
 - **AP credit by score:** all AP exams, following the College of Engineering chart, including unit caps and the 2-course H/SS limit.
 - **Requirement checks:** prerequisites, term offerings (real Fall/Spring/Summer offerings from the EECS department's course pages), unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, 2 upper-division H/SS courses, and the design course.
 - **Focus tracks:** pick AI/ML, Systems, Theory, Hardware, or Security and the electives follow.
