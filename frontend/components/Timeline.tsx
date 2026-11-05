@@ -14,6 +14,42 @@ interface Props {
   onFix: (changes: Partial<PlannerSettings>) => void;
   picks: Record<string, string>;
   onPick: (code: string, choice: string | null) => void;
+  onPickInto: (code: string, choice: string, plan: Semester[]) => void;  // choose a slot's course and move the slot
+}
+
+// a specific course offered as a choice for a placeholder slot (ENGIN 125 for the Ethics slot), found by "+ Add course"
+type SlotChoice = { label: string; slot: string | null; slotTitle: string; upperHss: boolean; unitsNote: string };
+
+const compact = (text: string) => text.toLowerCase().replace(/\s+/g, "");
+
+/**
+ * Slot choices matching `query`, each with the slot it would fill: one already set to it, else an open slot
+ * (Ethics first, since a 3-unit ethics course there also covers an upper-division H/SS course), else any.
+ * Generic choices ("Historical Studies course") aren't real courses, so they're left out.
+ */
+function slotChoices(query: string, catalog: CatalogCourse[], plan: Semester[], picks: Record<string, string>): SlotChoice[] {
+  const q = compact(query);
+  if (q.length < 2) return [];
+  const inPlan = new Set(plan.flatMap((s) => s.courses.map((c) => c.code)));
+  const slots = catalog.filter((c) => c.options.length > 0);
+  const labels = [...new Set(slots.flatMap((s) => s.options.map((o) => o.label)))]
+    .filter((label) => !/ course$/.test(label) && compact(label).includes(q));
+  return labels.map((label) => {
+    const holders = slots.filter((s) => s.options.some((o) => o.label === label));
+    const open = holders.filter((s) => inPlan.has(s.code));
+    const target =
+      open.find((s) => picks[s.code] === label) ??
+      open.filter((s) => !picks[s.code]).sort((a, b) => Number(b.code === "ETHICS") - Number(a.code === "ETHICS"))[0] ??
+      open[0] ?? null;
+    const option = (target ?? holders[0]).options.find((o) => o.label === label)!;
+    return {
+      label,
+      slot: target?.code ?? null,
+      slotTitle: (target ?? holders[0]).title.replace(/\s*\(.*\)$/, ""),
+      upperHss: !!option.upper_hss,
+      unitsNote: option.units !== undefined ? `${option.units}u` : "",
+    };
+  });
 }
 
 const TOTAL_UNITS = 120;
@@ -33,7 +69,7 @@ export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: st
   });
 }
 
-export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, onFix, picks, onPick }: Props) {
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, onFix, picks, onPick, onPickInto }: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
   const [shared, setShared] = useState<"idle" | "copied" | "failed">("idle");
@@ -217,12 +253,14 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
               const pickerOpen = picker?.term === semester.term;
+              // codes match with or without spaces ("CS 189"), titles as typed
               const matches = pickerOpen
                 ? catalog
                     .filter((c) => !planned.has(c.code))
-                    .filter((c) => `${c.code} ${c.title}`.toLowerCase().includes(picker.query.toLowerCase()))
+                    .filter((c) => compact(c.code).includes(compact(picker.query)) || c.title.toLowerCase().includes(picker.query.trim().toLowerCase()))
                     .slice(0, 6)
                 : [];
+              const choices = pickerOpen ? slotChoices(picker.query, catalog, plan, picks).slice(0, 4) : [];
 
               return (
                 <div
@@ -386,7 +424,32 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                               </button>
                             </li>
                           ))}
-                          {matches.length === 0 && (
+                          {choices.map((choice) => (
+                            <li key={choice.label}>
+                              <button
+                                type="button"
+                                disabled={!choice.slot}
+                                onClick={() => {
+                                  if (!choice.slot) return;
+                                  onPickInto(choice.slot, choice.label, placeCourse(plan, catalog, choice.slot, semester.term));
+                                  setPicker(null);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <span className="h-2 w-2 shrink-0 self-start rounded-full bg-slate-400 mt-1.5" />
+                                {/* two lines: the semester columns are too narrow for the explanation beside the name */}
+                                <span className="min-w-0">
+                                  <span className="block font-semibold">{choice.label}</span>
+                                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                                    {choice.slot
+                                      ? `fills your ${choice.slotTitle} slot${choice.upperHss ? " · also upper-div H/SS" : ""}${choice.unitsNote && ` · ${choice.unitsNote}`}`
+                                      : `a choice for ${choice.slotTitle}, which isn't in your plan`}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                          {matches.length === 0 && choices.length === 0 && (
                             <li className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">No matching courses left to add</li>
                           )}
                         </ul>
