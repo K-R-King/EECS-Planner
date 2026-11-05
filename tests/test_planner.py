@@ -377,3 +377,34 @@ def test_course_order_puts_picks_first_and_adds_a_design_course():
     assert order[:2] == course_order("ai", ["CS170", "CS189", "CS170"])[:2]
     assert course_order("ai", ["CS162"])[:2] == ["CS162", "CS189"]
     assert sorted(course_order("ai", ["CS162"])) == sorted(COURSES)
+
+
+# ---------- Data 100 needs Data 8 ----------
+
+def test_data_100_needs_data_8():
+    assert "DATA8" in COURSES["DATA100"]["prereqs"]
+
+
+@pytest.mark.parametrize("settings", ALL_SETTINGS[::7])
+def test_auto_planner_never_adds_data_8_or_data_100_without_it(settings):
+    planned = [c for s in build_degree_plan([], {**settings, "focus": "ai"})["plan"] for c in codes(s)]
+    assert "DATA8" not in planned and "DATA100" not in planned
+
+
+def test_data_100_is_planned_once_data_8_is_done():
+    planned = [c for s in build_degree_plan(["DATA8"], {"focus": "ai"})["plan"] for c in codes(s)]
+    assert "DATA100" in planned
+
+
+def test_data_100_before_data_8_is_flagged():
+    plan = build_degree_plan([], {})["plan"]
+    plan[2]["courses"].append({"code": "DATA100"})
+    issues = review_plan(plan, {})["issues"]
+    assert any(i["course"] == "DATA100" and "DATA8" in i["message"] for i in issues)
+
+
+def test_picking_data_100_plans_data_8_first():
+    result = build_degree_plan([], {"electives": ["DATA100"]})
+    order = [c for s in result["plan"] for c in codes(s)]
+    assert "DATA8" in order and "DATA100" in order and order.index("DATA8") < order.index("DATA100")
+    assert result["issues"] == []

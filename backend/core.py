@@ -145,6 +145,12 @@ def focus_list():
     }
 
 
+def needed_extras(code):
+    """Prerequisites of `code` that are only planned when asked for (`manual_only`), e.g. Data 8 for Data 100."""
+    return [p for prereq in COURSES[code]["prereqs"] for p in ([prereq] if isinstance(prereq, str) else prereq[:1])
+            if COURSES.get(p, {}).get("manual_only")]
+
+
 def course_order(focus, chosen=()):
     """
     All course codes: electives the student picked first, then the focus track's, then the rest.
@@ -154,6 +160,8 @@ def course_order(focus, chosen=()):
     preferred = FOCUS_TRACKS.get(focus, FOCUS_TRACKS["balanced"])["electives"]
     rest = list(dict.fromkeys([*preferred, *COURSES]))
     chosen = [c for c in dict.fromkeys(chosen) if c in COURSES]
+    # a picked course's prerequisites the auto-planner wouldn't add on its own (Data 8 for Data 100) go first
+    chosen = [*dict.fromkeys(p for c in chosen for p in needed_extras(c)), *chosen]
     if not any(COURSES[c].get("design") for c in chosen):
         design = next((c for c in rest if c not in chosen and COURSES[c].get("design")), None)
         chosen += [design] if design else []
@@ -403,7 +411,10 @@ def build_degree_plan(completed_courses, settings=None, suggest=True, fill_summe
     picks = picks_of(settings)
     credited, ap_units = ap_credit(scores)
     prior = [c for c in completed_courses_of(settings, completed_courses) if c not in credited]
-    order = course_order((settings or {}).get("focus", "balanced"), (settings or {}).get("electives", []))
+    picked = (settings or {}).get("electives", [])
+    order = course_order((settings or {}).get("focus", "balanced"), picked)
+    # manual-only courses (Data 8) are planned only when a picked elective needs them
+    wanted_extras = {p for c in picked if c in COURSES for p in needed_extras(c)}
 
     # waived slots count as done but add no units
     completed = set(prior) | set(credited) | set(waived_by(picks))
@@ -442,6 +453,7 @@ def build_degree_plan(completed_courses, settings=None, suggest=True, fill_summe
                     break
                 if (
                     COURSES[course]["category"] != category
+                    or (COURSES[course].get("manual_only") and course not in wanted_extras)
                     or course in completed
                     or course in semester_courses
                     or not can_take(course, completed, season, year)

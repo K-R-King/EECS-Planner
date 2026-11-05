@@ -135,8 +135,12 @@ COURSES = {
     "EECS106A": {"title": "Robotic Manipulation & Interaction",   "units": 4, "prereqs": ["ELENG66", "ELENG64"],       "terms": BOTH, "category": "elective", "upper_eecs": True, "design": True},
     "EECS149":  {"title": "Embedded Systems",                     "units": 4, "prereqs": ["CS61C", "ELENG64"],         "terms": BOTH, "category": "elective", "upper_eecs": True, "design": True},
     "ELENG105": {"title": "Microelectronic Devices & Circuits",   "units": 4, "prereqs": ["ELENG64"],                  "terms": BOTH, "category": "elective", "upper_eecs": True},
-    # cross-listed data science course; not counted toward the 20 upper-division EECS units here
-    "DATA100":  {"title": "Principles & Techniques of Data Science", "units": 4, "prereqs": ["CS61A", "MATH54"],       "terms": BOTH, "category": "elective"},
+    # cross-listed data science course; not counted toward the 20 upper-division EECS units here.
+    # Official: "DATA C8 or STAT 20; and COMPSCI 61A, C88C, or ENGIN 7; Corequisite: MATH 54 ... or ELENG 66"
+    "DATA100":  {"title": "Principles & Techniques of Data Science", "units": 4, "prereqs": ["DATA8", "CS61A", "MATH54"], "terms": BOTH, "category": "elective"},
+    # Data 100 needs it (or STAT 20). It isn't part of the EECS major, so the auto-planner never adds
+    # it; students mark it as taken or add it themselves, which makes Data 100 possible.
+    "DATA8":    {"title": "Foundations of Data Science",          "units": 4, "prereqs": [],                           "terms": ALL, "category": "elective", "min_year": 1, "manual_only": True},
 }
 
 
