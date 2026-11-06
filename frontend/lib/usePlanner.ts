@@ -66,8 +66,9 @@ export function usePlanner() {
   const [ratings, setRatings] = useState<Record<string, number | null>>({});
 
   useEffect(() => {
-    incomingTaken.current = takeIncoming();
-    incomingElectives.current = takeIncomingElectives();
+    // reading these clears them, and this effect can run twice on load, so keep what the first run found
+    incomingTaken.current ??= takeIncoming();
+    incomingElectives.current ??= takeIncomingElectives();
     fetchCatalog().then(setCatalog).catch(console.error);
     fetchApExams().then(setApExams).catch(console.error);
     fetchFocusTracks().then(setFocusTracks).catch(console.error);
