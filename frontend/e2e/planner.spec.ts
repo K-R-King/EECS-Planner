@@ -283,11 +283,9 @@ test("each semester shows Gemini's difficulty next to its units, and only new se
   await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
   expect(asked).toHaveLength(1);  // one request for the whole plan
 
-  const from = await termOf(page, "CS188");
-  const to = await otherTerm(page, "CS188");
-  await moveMenu(page, "CS188").selectOption(to);
+  await moveMenu(page, "CS188").selectOption(await otherTerm(page, "CS188"));
   await expect(page.getByText("Difficulty 9/10")).toHaveCount(2);
-  expect(asked[1].sort()).toEqual([from, to].sort());
+  expect(asked[1]).toHaveLength(8);  // the whole plan goes along, but only the 2 changed semesters take the new rating
 
   // undo brings back semesters already rated, with no new request
   await page.getByRole("button", { name: /Undo/ }).click();

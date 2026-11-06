@@ -5,9 +5,10 @@ import { expect, test, type Page } from "@playwright/test";
 // unreadable contrast, controls without labels, or broken ARIA.
 
 async function problems(page: Page) {
-  // let fade-ins finish first: half-faded text would fail the contrast check (looping animations never end)
+  // let fade-ins finish first: half-faded text would fail the contrast check (looping animations never end,
+  // and one cancelled by a re-render rejects, which is as good as finished)
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished)),
+    Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => {}))),
   );
   const results = await new AxeBuilder({ page })
     // the floating course tags in the header are decorative and hidden from screen readers

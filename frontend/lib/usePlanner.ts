@@ -160,7 +160,8 @@ export function usePlanner() {
     rememberTaken([...own, ...foreign]);
   }, [restored, catalog, settings.completed, result?.ap_credit]);
 
-  // rate semesters that are new, all in one request; moving a course back reuses the rating it had
+  // rate semesters that are new, sending the whole plan so they're rated alongside the others;
+  // moving a course back reuses the rating it had
   useEffect(() => {
     if (!result) return;
     const { picks } = settings;
@@ -168,7 +169,7 @@ export function usePlanner() {
     if (!unrated.length) return;
 
     const timer = setTimeout(() => {
-      rateSemesters(unrated, settings)
+      rateSemesters(result.plan, settings)
         .catch((err) => {
           console.error(err);
           return {} as Record<string, number | null>;
