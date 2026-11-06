@@ -6,6 +6,8 @@ import {
   fetchCatalog,
   fetchFocusTracks,
   generatePlan,
+  rateSemesters,
+  ratingKey,
   reviewPlan,
   type ApExam,
   type CatalogCourse,
@@ -17,6 +19,9 @@ import {
 import { rememberedTaken, rememberTaken, takeIncoming } from "@/lib/handoff";
 import { clearShareLink, loadSaved, readShareLink, save, shareLink } from "@/lib/share";
 import { fromPrereqsCode, toPrereqsCode } from "@/lib/suite";
+
+// wait for edits to stop before asking Gemini to rate semesters, since each request counts against a low limit
+const RATING_DELAY = 1200;
 
 export const DEFAULT_SETTINGS: Settings = {
   timeline: 4, maxUnits: 16, summer: false, winter: false, ap: {}, focus: "balanced", completed: [], picks: {}, electives: [], transfers: [],
@@ -57,6 +62,8 @@ export function usePlanner() {
   const incomingElectives = useRef<string[] | null>(null);
   // a message about something the page couldn't do, shown until dismissed
   const [notice, setNotice] = useState<string | null>(null);
+  // difficulty out of 10 for semesters rated so far (see ratingKey); null means it couldn't be rated
+  const [ratings, setRatings] = useState<Record<string, number | null>>({});
 
   useEffect(() => {
     incomingTaken.current = takeIncoming();
@@ -152,6 +159,27 @@ export function usePlanner() {
     const foreign = rememberedTaken().filter((c) => !known.has(fromPrereqsCode(c)));
     rememberTaken([...own, ...foreign]);
   }, [restored, catalog, settings.completed, result?.ap_credit]);
+
+  // rate semesters that are new, all in one request; moving a course back reuses the rating it had
+  useEffect(() => {
+    if (!result) return;
+    const { picks } = settings;
+    const unrated = result.plan.filter((s) => s.courses.length && !(ratingKey(s.courses, picks) in ratings));
+    if (!unrated.length) return;
+
+    const timer = setTimeout(() => {
+      rateSemesters(unrated, settings)
+        .catch((err) => {
+          console.error(err);
+          return {} as Record<string, number | null>;
+        })
+        .then((rated) => setRatings((known) => ({
+          ...known,
+          ...Object.fromEntries(unrated.map((s) => [ratingKey(s.courses, picks), rated[s.term] ?? null])),
+        })));
+    }, RATING_DELAY);
+    return () => clearTimeout(timer);
+  }, [result, settings, ratings]);
 
   // keep the plan across refreshes (only after restoring, so we don't overwrite it with nothing)
   useEffect(() => {
@@ -256,7 +284,7 @@ export function usePlanner() {
   }
 
   return {
-    result, settings, catalog, apExams, focusTracks, loading, slow, restoreCount,
+    result, settings, catalog, apExams, focusTracks, loading, slow, restoreCount, ratings,
     notice, dismissNotice: () => setNotice(null),
     canUndo: undoStack.length > 0,
     generate, applyFix, edit, pick, pickInto, commit, undo, share,

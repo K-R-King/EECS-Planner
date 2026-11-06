@@ -13,7 +13,7 @@ from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel
 
-from backend.core import catalog, plan_to_schedule
+from backend.core import catalog, course_info, plan_to_schedule
 from backend.curriculum import FOCUS_TRACKS
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -207,6 +207,77 @@ def get_ai_advice(plan, question, settings, issues, history, already_done, feedb
                 time.sleep(RETRY_DELAYS[attempt])
                 continue
             return message
+
+
+# ---------- SEMESTER DIFFICULTY ----------
+RATING_PROMPT = """You rate how hard semesters are for a UC Berkeley EECS major.
+For each semester, give one whole number from 1 to 10 for how hard its full course load is, counting
+how demanding the courses are, how much work they take together, and the number of units.
+1 is a very light semester, 5 a typical one for the major, and 10 the hardest load a student could
+realistically take. Use the same scale for every semester."""
+
+
+class SemesterRating(BaseModel):
+    semester: int
+    difficulty: int
+
+
+class RatingReply(BaseModel):
+    ratings: list[SemesterRating]
+
+
+# A semester's rating is kept for as long as the server runs: it stays the same however many times it's
+# shown, and a plan someone else already had rated costs no Gemini request.
+RATINGS_KEPT = 5000
+_ratings = {}
+
+
+def semester_key(codes, picks):
+    """What's being rated: the semester's courses, in any order, as Gemini is told about them."""
+    return tuple(sorted(f"{c['code']}: {c['title']} ({c['units']} units)" for c in (course_info(code, picks) for code in codes)))
+
+
+def known_rating(key):
+    return _ratings.get(key)
+
+
+def rate_semesters(keys):
+    """Asks Gemini to rate these semesters, in one request. Any it can't rate just stay unrated."""
+    client = get_client()
+    if client is None:
+        logger.error("GEMINI_API_KEY isn't set, so semesters aren't rated")
+        return
+
+    keys = list(dict.fromkeys(keys))
+    semesters = "\n\n".join(f"Semester {i}:\n" + "\n".join(key) for i, key in enumerate(keys))
+    for attempt in range(len(RETRY_DELAYS) + 1):
+        try:
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=f"Rate these semesters of an EECS major:\n\n{semesters}",
+                config=types.GenerateContentConfig(
+                    system_instruction=RATING_PROMPT,
+                    response_mime_type="application/json",
+                    response_schema=RatingReply,
+                    temperature=0,
+                ),
+            )
+            if not response.parsed:
+                logger.warning("Gemini's ratings couldn't be parsed: %s", response.text)
+                return
+            if len(_ratings) >= RATINGS_KEPT:
+                _ratings.clear()
+            for rating in response.parsed.ratings:
+                if 0 <= rating.semester < len(keys) and 1 <= rating.difficulty <= 10:
+                    _ratings[keys[rating.semester]] = rating.difficulty
+            return
+
+        except Exception as e:
+            _, retry = friendly_error(e)
+            if retry and attempt < len(RETRY_DELAYS):
+                time.sleep(RETRY_DELAYS[attempt])
+                continue
+            return
 
 
 ANSWER_SO_FAR = re.compile(r'"answer"\s*:\s*"((?:[^"\\]|\\.)*)')

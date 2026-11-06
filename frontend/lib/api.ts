@@ -41,6 +41,11 @@ export function courseDetails(course: CatalogCourse | undefined): string {
   return parts.filter(Boolean).join("\n\n");
 }
 
+/** Identifies a semester's load for its difficulty rating: its courses in any order, with the choices made for slots. */
+export function ratingKey(courses: Course[], picks: Record<string, string>): string {
+  return courses.map((c) => `${c.code}=${picks[c.code] ?? ""}`).sort().join("|");
+}
+
 export function prereqCodes(prereqs: Prereq[]): string[] {
   return prereqs.flat();
 }
@@ -152,6 +157,12 @@ export function generatePlan(settings: PlannerSettings): Promise<PlanResult> {
 
 export function reviewPlan(plan: Semester[], settings: PlannerSettings): Promise<PlanResult> {
   return request<PlanResult>("/review-plan", { plan, settings });
+}
+
+/** Gemini's difficulty out of 10 for each semester (by term), null where it couldn't rate one. */
+export async function rateSemesters(plan: Semester[], settings: PlannerSettings): Promise<Record<string, number | null>> {
+  const { ratings } = await request<{ ratings: Record<string, number | null> }>("/rate-semesters", { plan, settings });
+  return ratings;
 }
 
 /**
