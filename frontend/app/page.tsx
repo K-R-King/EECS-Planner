@@ -1,5 +1,6 @@
 "use client";
 
+import InternshipIdeas from "@/components/InternshipIdeas";
 import Hero from "@/components/Hero";
 import PlannerSettings from "@/components/PlannerSettings";
 import Timeline, { placeCourse } from "@/components/Timeline";
@@ -73,6 +74,12 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {result && (
+          <div className="mx-auto mt-12 max-w-5xl print:hidden">
+            <InternshipIdeas plan={result.plan} />
+          </div>
+        )}
 
         {/* AI Advisor */}
         {result && result.plan.length > 0 && (

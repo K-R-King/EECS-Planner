@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { courseDetails, prereqCodes, ratingKey, type CatalogCourse, type PlannerSettings, type PlanResult, type Semester } from "@/lib/api";
+import { courseDetails, prereqCodes, ratingKey, type CatalogCourse, type PlannerSettings, type PlanResult, type Rating, type Semester } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
   picks: Record<string, string>;
   onPick: (code: string, choice: string | null) => void;
   onPickInto: (code: string, choice: string, plan: Semester[]) => void;  // choose a slot's course and move the slot
-  ratings: Record<string, number | null>;  // difficulty out of 10 (see ratingKey); missing until it's rated
+  ratings: Record<string, Rating | null>;  // see ratingKey; missing until it's rated, null if it couldn't be
 }
 
 // a specific course offered as a choice for a placeholder slot (ENGIN 125 for the Ethics slot), found by "+ Add course"
@@ -255,7 +255,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               const isBreak = season === "Summer" || season === "Winter";
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
-              const difficulty = semester.courses.length ? ratings[ratingKey(semester.courses, picks)] : null;
+              const rating = semester.courses.length ? ratings[ratingKey(semester.courses, picks)] : null;
               const pickerOpen = picker?.term === semester.term;
               // codes match with or without spaces ("CS 189"), titles as typed
               const matches = pickerOpen
@@ -306,17 +306,18 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                       }`}>
                         {semester.units} units
                       </span>
-                      {difficulty !== null && (
+                      {rating !== null && (
                         <span
-                          data-difficulty={difficulty ?? "rating"}
+                          data-difficulty={rating?.difficulty ?? "rating"}
                           title="Gemini's rating of this semester for an EECS major. Not official."
                           className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         >
-                          Difficulty {difficulty ?? "…"}/10
+                          Difficulty {rating?.difficulty ?? "…"}/10
                         </span>
                       )}
                     </div>
                   </div>
+                  {rating?.reason && <p className="-mt-2 mb-3 text-xs text-slate-600 dark:text-slate-300">{rating.reason}</p>}
 
                   {/* Courses */}
                   <ul className={`space-y-2 ${isBreak ? "grid gap-2 space-y-0 sm:grid-cols-2" : "min-h-12"}`}>

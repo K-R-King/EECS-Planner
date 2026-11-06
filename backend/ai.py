@@ -225,12 +225,16 @@ Use this fixed scale, comparing each semester to these examples:
 10: CS 162, CS 170, CS 189, EECS 151 (17 units); keep 9 and 10 for loads this extreme
 
 A semester with one course fewer is never harder: removing a course lowers the rating or leaves it
-the same, and adding one raises it or leaves it the same."""
+the same, and adding one raises it or leaves it the same.
+
+Also give a reason: one plain sentence of at most 12 words saying what drives the rating. Name only
+courses in that semester, and don't mention the number."""
 
 
 class SemesterRating(BaseModel):
     semester: int
     difficulty: int
+    reason: str
 
 
 class RatingReply(BaseModel):
@@ -287,7 +291,7 @@ def rate_semesters(keys, rated=()):
                 _ratings.clear()
             for rating in response.parsed.ratings:
                 if 0 <= rating.semester < len(keys) and 1 <= rating.difficulty <= 10:
-                    _ratings[keys[rating.semester]] = rating.difficulty
+                    _ratings[keys[rating.semester]] = {"difficulty": rating.difficulty, "reason": rating.reason.strip()[:140]}
             return
 
         except Exception as e:
