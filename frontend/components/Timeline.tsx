@@ -255,7 +255,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               const isBreak = season === "Summer" || season === "Winter";
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
-              const rating = semester.courses.length ? ratings[ratingKey(semester.courses, picks)] : null;
+              const rating = ratings[ratingKey(semester.courses, picks)];  // undefined until it's rated, null if it couldn't be
               const pickerOpen = picker?.term === semester.term;
               // codes match with or without spaces ("CS 189"), titles as typed
               const matches = pickerOpen
@@ -306,13 +306,15 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                       }`}>
                         {semester.units} units
                       </span>
-                      {rating !== null && (
+                      {semester.courses.length > 0 && (
                         <span
-                          data-difficulty={rating?.difficulty ?? "rating"}
-                          title="Gemini's rating of this semester for an EECS major. Not official."
+                          data-difficulty={rating?.difficulty ?? (rating === null ? "unavailable" : "rating")}
+                          title={rating === null
+                            ? "Gemini couldn't rate this semester just now. Refresh the page to try again."
+                            : "Gemini's rating of this semester for an EECS major. Not official."}
                           className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         >
-                          Difficulty {rating?.difficulty ?? "…"}/10
+                          {rating ? `Difficulty ${rating.difficulty}/10` : rating === null ? "Rating unavailable" : "Rating…"}
                         </span>
                       )}
                     </div>
