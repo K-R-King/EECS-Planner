@@ -367,6 +367,28 @@ def test_ratings_have_their_own_limit_and_rated_semesters_skip_it(monkeypatch):
     assert not main._advisor_calls
 
 
+def test_rating_retries_when_the_connection_drops(monkeypatch):
+    fake_gemini(monkeypatch, httpx.ConnectError("dropped"), ratings_reply(8))
+    assert rated(["CS162"]) == {"Year 1 Fall": 8}
+
+
+def test_new_semesters_are_rated_alongside_the_rest_of_the_plan(monkeypatch):
+    prompts = []
+    replies = iter([ratings_reply(7), ratings_reply(4)])
+
+    def generate_content(contents, **_):
+        prompts.append(contents)
+        return SimpleNamespace(parsed=next(replies), text="")
+
+    monkeypatch.setattr(ai.get_client().models, "generate_content", generate_content)
+    assert rated(["CS162"]) == {"Year 1 Fall": 7}
+    assert rated(["CS162"], ["R1A"]) == {"Year 1 Fall": 7, "Year 2 Fall": 4}
+
+    new, already = prompts[1].split("already rated")
+    assert "R1A" in new and "CS162" not in new
+    assert "Rated 7:" in already and "CS162" in already
+
+
 def test_rating_unknown_courses_is_rejected():
     response = client.post("/rate-semesters", json={"plan": [{"term": "Year 1 Fall", "courses": ["NOPE1"]}]})
     assert response.status_code == 422

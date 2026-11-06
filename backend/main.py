@@ -121,7 +121,7 @@ def rate(req: RatingRequest, request: Request):
     semesters = {term: semester_key(codes, picks) for term, codes in schedule if codes}
     unrated = [key for key in semesters.values() if known_rating(key) is None]
     if unrated and within_limit(_rating_calls, RATING_LIMIT, request):
-        rate_semesters(unrated)
+        rate_semesters(unrated, [(key, known_rating(key)) for key in semesters.values() if key not in unrated])
     return {"ratings": {term: known_rating(key) for term, key in semesters.items()}}
 
 

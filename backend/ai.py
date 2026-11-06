@@ -213,8 +213,19 @@ def get_ai_advice(plan, question, settings, issues, history, already_done, feedb
 RATING_PROMPT = """You rate how hard semesters are for a UC Berkeley EECS major.
 For each semester, give one whole number from 1 to 10 for how hard its full course load is, counting
 how demanding the courses are, how much work they take together, and the number of units.
-1 is a very light semester, 5 a typical one for the major, and 10 the hardest load a student could
-realistically take. Use the same scale for every semester."""
+
+Use this fixed scale, comparing each semester to these examples:
+2: Reading & Composition, two Humanities/Social Sciences breadth courses (12 units)
+3: Reading & Composition, two breadth courses, Engineering Ethics (13 units)
+5: Reading & Composition, Calculus I, CS 61A, a Natural Science course (16 units)
+6: a breadth course, Math 54, CS 61B, Physics 7A (16 units)
+6: a breadth course, CS 61C, CS 162 (12 units); few units of hard courses is still a real load
+7: a breadth course, Math 53, Math 54, CS 61C (16 units)
+8: a breadth course, CS 70, CS 162, EECS 16A (16 units)
+10: CS 162, CS 170, CS 189, EECS 151 (17 units); keep 9 and 10 for loads this extreme
+
+A semester with one course fewer is never harder: removing a course lowers the rating or leaves it
+the same, and adding one raises it or leaves it the same."""
 
 
 class SemesterRating(BaseModel):
@@ -241,20 +252,27 @@ def known_rating(key):
     return _ratings.get(key)
 
 
-def rate_semesters(keys):
-    """Asks Gemini to rate these semesters, in one request. Any it can't rate just stay unrated."""
+def rate_semesters(keys, rated=()):
+    """
+    Asks Gemini to rate these semesters, in one request. Any it can't rate just stay unrated.
+    rated: [(key, rating)] for the plan's other semesters, so new ratings fit alongside them.
+    """
     client = get_client()
     if client is None:
         logger.error("GEMINI_API_KEY isn't set, so semesters aren't rated")
         return
 
     keys = list(dict.fromkeys(keys))
-    semesters = "\n\n".join(f"Semester {i}:\n" + "\n".join(key) for i, key in enumerate(keys))
+    prompt = "Rate these semesters of an EECS major:\n\n"
+    prompt += "\n\n".join(f"Semester {i}:\n" + "\n".join(key) for i, key in enumerate(keys))
+    if rated:
+        prompt += "\n\nThe rest of this plan, already rated. Don't rate these, but stay consistent with them:\n\n"
+        prompt += "\n\n".join(f"Rated {rating}:\n" + "\n".join(key) for key, rating in rated)
     for attempt in range(len(RETRY_DELAYS) + 1):
         try:
             response = client.models.generate_content(
                 model=MODEL,
-                contents=f"Rate these semesters of an EECS major:\n\n{semesters}",
+                contents=prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=RATING_PROMPT,
                     response_mime_type="application/json",
@@ -274,7 +292,8 @@ def rate_semesters(keys):
 
         except Exception as e:
             _, retry = friendly_error(e)
-            if retry and attempt < len(RETRY_DELAYS):
+            # nobody is waiting on an answer here, so a dropped connection is worth another try too
+            if (retry or isinstance(e, httpx.TransportError)) and attempt < len(RETRY_DELAYS):
                 time.sleep(RETRY_DELAYS[attempt])
                 continue
             return
