@@ -269,6 +269,39 @@ test("choosing a course for a slot updates its units", async ({ page }) => {
   await expect(page.getByText("Physics 5A must be followed by Physics 5B + 5BL.").first()).toBeVisible();
 });
 
+test("each semester shows Gemini's difficulty next to its units, and only new semesters are rated", async ({ page }) => {
+  // fake Gemini at the API boundary: the first request rates everything 6, later ones 9
+  const asked: string[][] = [];
+  await page.route("**/rate-semesters", (route) => {
+    const terms: string[] = route.request().postDataJSON().plan.map((s: { term: string }) => s.term);
+    const rating = asked.length ? 9 : 6;
+    asked.push(terms);
+    return route.fulfill({ json: { ratings: Object.fromEntries(terms.map((t) => [t, rating])) } });
+  });
+
+  await generate(page);
+  await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
+  expect(asked).toHaveLength(1);  // one request for the whole plan
+
+  const from = await termOf(page, "CS188");
+  const to = await otherTerm(page, "CS188");
+  await moveMenu(page, "CS188").selectOption(to);
+  await expect(page.getByText("Difficulty 9/10")).toHaveCount(2);
+  expect(asked[1].sort()).toEqual([from, to].sort());
+
+  // undo brings back semesters already rated, with no new request
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
+  expect(asked).toHaveLength(2);
+});
+
+test("a semester Gemini can't rate just leaves the rating out", async ({ page }) => {
+  await page.route("**/rate-semesters", (route) => route.fulfill({ status: 500 }));
+  await generate(page);
+  await expect(page.getByText("Difficulty …/10").first()).toBeVisible();
+  await expect(page.getByText(/^Difficulty/)).toHaveCount(0);
+});
+
 test("asks before a settings change throws away edits", async ({ page }) => {
   await generate(page);
   await moveMenu(page, "CS188").selectOption(await otherTerm(page, "CS188"));

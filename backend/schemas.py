@@ -96,6 +96,16 @@ class ReviewRequest(BaseModel):
     settings: Settings = Settings()
 
 
+class RatingRequest(ReviewRequest):
+    @field_validator("plan")
+    @classmethod
+    def known_courses(cls, plan):
+        unknown = [c for s in plan for c in (getattr(c, "code", c) for c in s.courses) if c not in COURSES]
+        if unknown:
+            raise ValueError(f"unknown courses: {', '.join(unknown)}")
+        return plan
+
+
 class AdvisorRequest(BaseModel):
     plan: list[SemesterIn] = Field(default=[], max_length=12)
     question: Annotated[str, StringConstraints(min_length=1, max_length=1000)]

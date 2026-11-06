@@ -20,6 +20,7 @@ Generates a semester-by-semester course roadmap for incoming UC Berkeley EECS st
 - **Requirement checks:** prerequisites, term offerings (real Fall/Spring/Summer offerings from the EECS department's course pages), unit limits, the 12-unit full-time minimum, R&C deadlines, 20 upper-division EECS units, 2 upper-division H/SS courses, and the design course.
 - **Focus tracks:** pick AI/ML, Systems, Theory, Hardware, or Security and the electives follow.
 - **Courses already taken:** courses taken earlier count as done. For a community college course, type it ("ENGL C1000") and pick the Berkeley course it counts as; the page links to [ASSIST](https://assist.org) to check, since equivalencies differ by college. Search accepts codes with or without spaces.
+- **Semester difficulty:** each semester shows Gemini's rating out of 10 next to its units, asked for all new semesters at once after edits stop. Ratings are kept per set of courses, so a semester's rating stays the same and repeat plans cost no requests. Without a Gemini key, or past the limit, the rating is just left out.
 - **Seminars, special topics and DeCals:** add them with "+ Add course" (e.g. "eleng 39", "cs 198"). They're marked *Extra*: they count toward a semester's units and the 120 total, but fill no requirement, and you pick their units on the card. The planner never adds them on its own.
 - **Your electives:** electives picked on [EECS Electives](https://eecs-electives.vercel.app) (or passed as `?electives=CS189.CS162`) are scheduled before the focus track's, still following every rule; one that doesn't fit is flagged in the settings.
 - **Real choices:** pick the actual natural science course and H/SS category for each placeholder slot.
@@ -106,7 +107,7 @@ Everything runs on free tiers: Vercel for the frontend, Render for the backend, 
 Things to know about the free tiers:
 - **Render sleeps** after about 15 idle minutes; the next visitor waits up to a minute (the page says so).
 - **Switching models:** the advisor uses `gemini-2.5-flash`. Set `GEMINI_MODEL` to use another one (for example when Google retires it), no code change needed.
-- **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10), counted by the address in `CLIENT_IP_HEADER` (`render.yaml` sets it to `true-client-ip`).
+- **Gemini's free tier allows 5 advisor requests per minute for everyone combined.** Past that, students see "the advisor has hit its usage limit, wait a minute". Each visitor is also limited to `ADVISOR_REQUESTS_PER_MINUTE` (default 10), counted by the address in `CLIENT_IP_HEADER` (`render.yaml` sets it to `true-client-ip`). Rating semesters the server hasn't seen shares Gemini's limit, and has its own per-visitor cap, `RATING_REQUESTS_PER_MINUTE` (default 6).
 
 ## Keeping course data fresh
 

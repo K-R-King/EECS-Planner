@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { courseDetails, prereqCodes, type CatalogCourse, type PlannerSettings, type PlanResult, type Semester } from "@/lib/api";
+import { courseDetails, prereqCodes, ratingKey, type CatalogCourse, type PlannerSettings, type PlanResult, type Semester } from "@/lib/api";
 import { CATEGORY_STYLES, DRAG_TYPE } from "@/lib/categories";
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
   picks: Record<string, string>;
   onPick: (code: string, choice: string | null) => void;
   onPickInto: (code: string, choice: string, plan: Semester[]) => void;  // choose a slot's course and move the slot
+  ratings: Record<string, number | null>;  // difficulty out of 10 (see ratingKey); missing until it's rated
 }
 
 // a specific course offered as a choice for a placeholder slot (ENGIN 125 for the Ethics slot), found by "+ Add course"
@@ -70,7 +71,7 @@ export function placeCourse(plan: Semester[], catalog: CatalogCourse[], code: st
   });
 }
 
-export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, onFix, picks, onPick, onPickInto }: Props) {
+export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onShare, onFix, picks, onPick, onPickInto, ratings }: Props) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ term: string; query: string } | null>(null);
   const [shared, setShared] = useState<"idle" | "copied" | "failed">("idle");
@@ -254,6 +255,7 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
               const isBreak = season === "Summer" || season === "Winter";
               const termIssues = issues.filter((i) => i.term === semester.term && i.course === null);
               const isTarget = dragOver === semester.term;
+              const difficulty = semester.courses.length ? ratings[ratingKey(semester.courses, picks)] : null;
               const pickerOpen = picker?.term === semester.term;
               // codes match with or without spaces ("CS 189"), titles as typed
               const matches = pickerOpen
@@ -298,11 +300,22 @@ export default function Timeline({ result, catalog, onEdit, onUndo, canUndo, onS
                       {season}
                       {isBreak && <span className="text-xs font-normal text-slate-500 dark:text-slate-400">optional</span>}
                     </h3>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                    }`}>
-                      {semester.units} units
-                    </span>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        termIssues.length ? "bg-red-100 text-red-700" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                      }`}>
+                        {semester.units} units
+                      </span>
+                      {difficulty !== null && (
+                        <span
+                          data-difficulty={difficulty ?? "rating"}
+                          title="Gemini's rating of this semester for an EECS major. Not official."
+                          className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                        >
+                          Difficulty {difficulty ?? "…"}/10
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Courses */}

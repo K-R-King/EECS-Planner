@@ -61,6 +61,7 @@ export default function Home() {
             picks={settings.picks}
             onPick={planner.pick}
             onPickInto={planner.pickInto}
+            ratings={planner.ratings}
           />
           {result && (
             <div className="print:hidden">

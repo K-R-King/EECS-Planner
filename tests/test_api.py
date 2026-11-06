@@ -17,6 +17,8 @@ SETTINGS = {"timeline": 4, "maxUnits": 16, "ap": {}}
 def no_waiting(monkeypatch):
     monkeypatch.setattr(ai, "RETRY_DELAYS", [0, 0])
     main._advisor_calls.clear()
+    main._rating_calls.clear()
+    ai._ratings.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -302,3 +304,69 @@ def test_picked_electives_are_checked():
 def test_advisor_is_told_about_picked_electives():
     prompt = ai.build_prompt([], "hi", {"electives": ["CS189"]}, [], [], [])
     assert "Electives the student picked" in prompt and "CS189" in prompt
+
+
+# ---------- semester difficulty ----------
+
+def rated(*semesters):
+    """Asks for ratings of these semesters, one per year."""
+    plan = [{"term": f"Year {i + 1} Fall", "courses": courses} for i, courses in enumerate(semesters)]
+    response = client.post("/rate-semesters", json={"plan": plan})
+    assert response.status_code == 200
+    return response.json()["ratings"]
+
+
+def ratings_reply(*difficulties):
+    return ai.RatingReply(ratings=[ai.SemesterRating(semester=i, difficulty=d) for i, d in enumerate(difficulties)])
+
+
+def test_semesters_are_rated_in_one_request(monkeypatch):
+    fake_gemini(monkeypatch, ratings_reply(7, 4))  # a second request would run out of outcomes
+
+    assert rated(["CS162", "CS170"], ["R1A"], []) == {"Year 1 Fall": 7, "Year 2 Fall": 4}
+
+
+def test_a_rated_semester_keeps_its_rating_in_any_order(monkeypatch):
+    fake_gemini(monkeypatch, ratings_reply(7))
+    assert rated(["CS162", "CS170"]) == {"Year 1 Fall": 7}
+    assert rated(["CS170", "CS162"]) == {"Year 1 Fall": 7}  # no second Gemini request
+
+
+def test_the_chosen_course_changes_what_is_rated(monkeypatch):
+    fake_gemini(monkeypatch, ratings_reply(5), ratings_reply(6))
+    plan = {"plan": [{"term": "Year 1 Fall", "courses": ["PHYS7A"]}]}
+
+    assert client.post("/rate-semesters", json=plan).json()["ratings"] == {"Year 1 Fall": 5}
+    picked = {**plan, "settings": {"picks": {"PHYS7A": "PHYSICS 5A"}}}
+    assert client.post("/rate-semesters", json=picked).json()["ratings"] == {"Year 1 Fall": 6}
+
+
+@pytest.mark.parametrize("difficulty", [0, 11])
+def test_ratings_outside_one_to_ten_are_dropped(monkeypatch, difficulty):
+    fake_gemini(monkeypatch, ratings_reply(difficulty))
+    assert rated(["CS162"]) == {"Year 1 Fall": None}
+
+
+def test_a_failed_rating_leaves_the_semester_unrated(monkeypatch):
+    fake_gemini(monkeypatch, server_error(), server_error(), server_error())
+    assert rated(["CS162"]) == {"Year 1 Fall": None}
+
+
+def test_rating_retries_when_gemini_is_busy(monkeypatch):
+    fake_gemini(monkeypatch, server_error(), ratings_reply(8))
+    assert rated(["CS162"]) == {"Year 1 Fall": 8}
+
+
+def test_ratings_have_their_own_limit_and_rated_semesters_skip_it(monkeypatch):
+    monkeypatch.setattr(main, "RATING_LIMIT", 1)
+    fake_gemini(monkeypatch, ratings_reply(7))
+
+    assert rated(["CS162"]) == {"Year 1 Fall": 7}
+    assert rated(["CS170"]) == {"Year 1 Fall": None}  # over the limit, so Gemini isn't asked
+    assert rated(["CS162"]) == {"Year 1 Fall": 7}
+    assert not main._advisor_calls
+
+
+def test_rating_unknown_courses_is_rejected():
+    response = client.post("/rate-semesters", json={"plan": [{"term": "Year 1 Fall", "courses": ["NOPE1"]}]})
+    assert response.status_code == 422

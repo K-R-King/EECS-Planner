@@ -8,9 +8,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
-from backend.core import ap_exam_list, apply_changes, build_degree_plan, catalog, focus_list, review_plan
-from backend.ai import get_ai_advice, stream_ai_advice
-from backend.schemas import AdvisorRequest, PlanRequest, ReviewRequest
+from backend.core import (
+    ap_exam_list, apply_changes, build_degree_plan, catalog, focus_list, picks_of, plan_to_schedule, review_plan,
+)
+from backend.ai import get_ai_advice, known_rating, rate_semesters, semester_key, stream_ai_advice
+from backend.schemas import AdvisorRequest, PlanRequest, RatingRequest, ReviewRequest
 
 app = FastAPI()
 
@@ -26,8 +28,10 @@ app.add_middleware(
 )
 
 # ---------------- RATE LIMIT ----------------
-# every advisor question costs a Gemini request, so cap them per visitor
+# every advisor question costs a Gemini request, so cap them per visitor; so does rating a new semester,
+# counted separately so that editing a plan doesn't use up someone's advisor questions
 ADVISOR_LIMIT = int(os.environ.get("ADVISOR_REQUESTS_PER_MINUTE", "10"))
+RATING_LIMIT = int(os.environ.get("RATING_REQUESTS_PER_MINUTE", "6"))
 RATE_LIMIT_MESSAGE = "You're asking questions faster than the advisor can keep up. Please wait a minute and try again."
 WINDOW = 60  # seconds
 
@@ -37,6 +41,7 @@ WINDOW = 60  # seconds
 CLIENT_IP_HEADER = os.environ.get("CLIENT_IP_HEADER", "").strip().lower()
 
 _advisor_calls: dict[str, deque] = defaultdict(deque)
+_rating_calls: dict[str, deque] = defaultdict(deque)
 _calls_lock = threading.Lock()
 _last_sweep = 0.0
 
@@ -55,22 +60,27 @@ def _forget_idle_visitors(now: float):
     if now - _last_sweep < WINDOW:
         return
     _last_sweep = now
-    for ip in [ip for ip, calls in _advisor_calls.items() if not calls or now - calls[-1] > WINDOW]:
-        del _advisor_calls[ip]
+    for table in (_advisor_calls, _rating_calls):
+        for ip in [ip for ip, calls in table.items() if not calls or now - calls[-1] > WINDOW]:
+            del table[ip]
 
 
-def advisor_allowed(request: Request) -> bool:
+def within_limit(table: dict[str, deque], limit: int, request: Request) -> bool:
     ip = client_ip(request)
     now = time.monotonic()
     with _calls_lock:
         _forget_idle_visitors(now)
-        calls = _advisor_calls[ip]
+        calls = table[ip]
         while calls and now - calls[0] > WINDOW:
             calls.popleft()
-        if len(calls) >= ADVISOR_LIMIT:
+        if len(calls) >= limit:
             return False
         calls.append(now)
         return True
+
+
+def advisor_allowed(request: Request) -> bool:
+    return within_limit(_advisor_calls, ADVISOR_LIMIT, request)
 
 
 # ---------------- ROUTES ----------------
@@ -101,6 +111,18 @@ def generate_plan(req: PlanRequest):
 @app.post("/review-plan")
 def review(req: ReviewRequest):
     return review_plan([s.model_dump() for s in req.plan], req.settings.model_dump())
+
+
+@app.post("/rate-semesters")
+def rate(req: RatingRequest, request: Request):
+    """Each semester's difficulty out of 10 from Gemini: {term: rating}, or null if it couldn't be rated."""
+    picks = picks_of(req.settings.model_dump())
+    schedule = plan_to_schedule([s.model_dump() for s in req.plan])
+    semesters = {term: semester_key(codes, picks) for term, codes in schedule if codes}
+    unrated = [key for key in semesters.values() if known_rating(key) is None]
+    if unrated and within_limit(_rating_calls, RATING_LIMIT, request):
+        rate_semesters(unrated)
+    return {"ratings": {term: known_rating(key) for term, key in semesters.items()}}
 
 
 def advisor_context(req: AdvisorRequest):
