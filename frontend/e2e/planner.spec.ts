@@ -293,6 +293,37 @@ test("each semester shows Gemini's difficulty next to its units, and only new se
   expect(asked).toHaveLength(2);
 });
 
+test("ratings are remembered across a refresh, without asking again", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/rate-semesters", (route) => {
+    requests++;
+    const terms: string[] = route.request().postDataJSON().plan.map((s: { term: string }) => s.term);
+    return route.fulfill({ json: { ratings: Object.fromEntries(terms.map((t) => [t, 6])) } });
+  });
+
+  await generate(page);
+  await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
+  await page.reload();
+  await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
+  await page.waitForTimeout(1500);
+  expect(requests).toBe(1);
+});
+
+test("a failed rating is tried again after a refresh", async ({ page }) => {
+  let fail = true;
+  await page.route("**/rate-semesters", (route) => {
+    if (fail) return route.fulfill({ status: 500 });
+    const terms: string[] = route.request().postDataJSON().plan.map((s: { term: string }) => s.term);
+    return route.fulfill({ json: { ratings: Object.fromEntries(terms.map((t) => [t, 6])) } });
+  });
+
+  await generate(page);
+  await expect(page.getByText(/^Difficulty/)).toHaveCount(0, { timeout: 8000 });
+  fail = false;
+  await page.reload();
+  await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
+});
+
 test("a semester Gemini can't rate just leaves the rating out", async ({ page }) => {
   await page.route("**/rate-semesters", (route) => route.fulfill({ status: 500 }));
   await generate(page);

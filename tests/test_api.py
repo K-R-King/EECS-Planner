@@ -392,3 +392,22 @@ def test_new_semesters_are_rated_alongside_the_rest_of_the_plan(monkeypatch):
 def test_rating_unknown_courses_is_rejected():
     response = client.post("/rate-semesters", json={"plan": [{"term": "Year 1 Fall", "courses": ["NOPE1"]}]})
     assert response.status_code == 422
+
+
+# ---------- the longest plans ----------
+
+def test_a_plan_with_summers_and_winters_works_everywhere(monkeypatch):
+    settings = {"summer": True, "winter": True}
+    body = {"plan": client.post("/generate-plan", json={"settings": settings}).json()["plan"], "settings": settings}
+    assert len(body["plan"]) > 12
+
+    assert client.post("/review-plan", json=body).status_code == 200
+    fake_gemini(monkeypatch, ratings_reply(5))
+    assert client.post("/rate-semesters", json=body).status_code == 200
+    fake_gemini(monkeypatch, AdvisorReply(answer="ok", changes=[]))
+    assert client.post("/advisor", json={**body, "question": "hi"}).json()["answer"] == "ok"
+
+
+def test_plans_longer_than_four_full_years_are_rejected():
+    plan = [{"term": "Year 1 Fall", "courses": []}] * 17
+    assert client.post("/review-plan", json={"plan": plan}).status_code == 422
