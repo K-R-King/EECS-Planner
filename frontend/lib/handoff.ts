@@ -9,8 +9,9 @@ const STORAGE_KEY = "eecs-suite:taken";
 const PARAM = "taken";
 const CODE = /^[A-Z]+\d+[A-Z]*$/;
 
+// Internship Finder has no use for the list, so it stays out of that site's links
 const SUITE_ORIGINS = new Set(
-  [HOME_URL, ...SUITE.map((s) => s.url)].map((url) => {
+  [HOME_URL, ...SUITE.filter((s) => s.id !== "internships").map((s) => s.url)].map((url) => {
     try {
       return new URL(url).origin;
     } catch {
