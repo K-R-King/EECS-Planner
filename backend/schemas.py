@@ -9,6 +9,7 @@ from backend.curriculum import AP_EXAMS, COURSES, FOCUS_TRACKS
 
 Term = Annotated[str, StringConstraints(pattern=r"^Year [1-4] (Fall|Winter|Spring|Summer)$")]
 CourseCode = Annotated[str, StringConstraints(min_length=1, max_length=20)]
+MAX_TERMS = 16  # four years of fall, spring, summer and winter break
 
 
 
@@ -92,7 +93,7 @@ class PlanRequest(BaseModel):
 
 
 class ReviewRequest(BaseModel):
-    plan: list[SemesterIn] = Field(default=[], max_length=12)
+    plan: list[SemesterIn] = Field(default=[], max_length=MAX_TERMS)
     settings: Settings = Settings()
 
 
@@ -107,7 +108,7 @@ class RatingRequest(ReviewRequest):
 
 
 class AdvisorRequest(BaseModel):
-    plan: list[SemesterIn] = Field(default=[], max_length=12)
+    plan: list[SemesterIn] = Field(default=[], max_length=MAX_TERMS)
     question: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
     settings: Settings = Settings()
     history: list[ChatTurn] = Field(default=[], max_length=40)
