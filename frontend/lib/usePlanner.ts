@@ -14,6 +14,7 @@ import {
   type FocusTracks,
   type PlannerSettings as Settings,
   type PlanResult,
+  type Rating,
   type Semester,
 } from "@/lib/api";
 import { rememberedTaken, rememberTaken, takeIncoming } from "@/lib/handoff";
@@ -22,10 +23,10 @@ import { fromPrereqsCode, toPrereqsCode } from "@/lib/suite";
 
 // wait for edits to stop before asking Gemini to rate semesters, since each request counts against a low limit
 const RATING_DELAY = 1200;
-const RATINGS_KEY = "eecs-planner:ratings:v1";
+const RATINGS_KEY = "eecs-planner:ratings:v2";
 
 /** Ratings this browser already has, so a refresh or return visit asks Gemini for nothing it's been told. */
-function loadRatings(): Record<string, number | null> {
+function loadRatings(): Record<string, Rating | null> {
   try {
     return typeof window === "undefined" ? {} : JSON.parse(localStorage.getItem(RATINGS_KEY) ?? "{}") ?? {};
   } catch {
@@ -34,7 +35,7 @@ function loadRatings(): Record<string, number | null> {
 }
 
 /** Leaves out failed ratings, so they're tried again on the next visit. */
-function saveRatings(ratings: Record<string, number | null>) {
+function saveRatings(ratings: Record<string, Rating | null>) {
   try {
     localStorage.setItem(RATINGS_KEY, JSON.stringify(Object.fromEntries(Object.entries(ratings).filter(([, r]) => r !== null))));
   } catch {
@@ -82,7 +83,7 @@ export function usePlanner() {
   // a message about something the page couldn't do, shown until dismissed
   const [notice, setNotice] = useState<string | null>(null);
   // difficulty out of 10 for semesters rated so far (see ratingKey); null means it couldn't be rated
-  const [ratings, setRatings] = useState<Record<string, number | null>>(loadRatings);
+  const [ratings, setRatings] = useState<Record<string, Rating | null>>(loadRatings);
 
   useEffect(() => {
     // reading these clears them, and this effect can run twice on load, so keep what the first run found
@@ -192,7 +193,7 @@ export function usePlanner() {
       rateSemesters(result.plan, settings)
         .catch((err) => {
           console.error(err);
-          return {} as Record<string, number | null>;
+          return {} as Record<string, Rating | null>;
         })
         .then((rated) => setRatings((known) => ({
           ...known,

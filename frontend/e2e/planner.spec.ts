@@ -293,6 +293,31 @@ test("each semester shows Gemini's difficulty next to its units, and only new se
   expect(asked).toHaveLength(2);
 });
 
+test("a rating shows why", async ({ page }) => {
+  await page.route("**/rate-semesters", (route) => {
+    const terms: string[] = route.request().postDataJSON().plan.map((s: { term: string }) => s.term);
+    return route.fulfill({ json: {
+      ratings: Object.fromEntries(terms.map((t) => [t, 6])),
+      reasons: Object.fromEntries(terms.map((t) => [t, `Reason for ${t}`])),
+    } });
+  });
+  await generate(page);
+  await expect(semester(page, "Year 2 Fall").getByText("Reason for Year 2 Fall")).toBeVisible();
+});
+
+test("suggests internships that fit the plan, and follows edits", async ({ page }) => {
+  await generate(page);
+  const ideas = page.getByRole("region", { name: "Internships that fit this plan" });
+  const software = ideas.getByRole("link", { name: /Software/ });
+  await expect(software).toHaveAttribute("href", /\/\?field=Software$/);
+  await expect(software).toHaveAttribute("target", "_blank");
+  await expect(ideas.getByRole("link", { name: /Security/ })).toHaveAttribute("href", /\/\?q=security$/);
+  await expect(ideas.getByRole("link", { name: /Security/ })).toContainText("CS161");
+
+  await course(page, "CS161").getByRole("button", { name: /Remove/ }).click();
+  await expect(ideas.getByRole("link", { name: /Security/ })).toHaveCount(0);
+});
+
 test("ratings are remembered across a refresh, without asking again", async ({ page }) => {
   let requests = 0;
   await page.route("**/rate-semesters", (route) => {

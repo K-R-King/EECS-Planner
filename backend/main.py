@@ -115,14 +115,21 @@ def review(req: ReviewRequest):
 
 @app.post("/rate-semesters")
 def rate(req: RatingRequest, request: Request):
-    """Each semester's difficulty out of 10 from Gemini: {term: rating}, or null if it couldn't be rated."""
+    """
+    Gemini's view of each semester: its difficulty out of 10 in `ratings` and why in `reasons`, by term,
+    or null where it couldn't be rated.
+    """
     picks = picks_of(req.settings.model_dump())
     schedule = plan_to_schedule([s.model_dump() for s in req.plan])
     semesters = {term: semester_key(codes, picks) for term, codes in schedule if codes}
     unrated = [key for key in semesters.values() if known_rating(key) is None]
     if unrated and within_limit(_rating_calls, RATING_LIMIT, request):
-        rate_semesters(unrated, [(key, known_rating(key)) for key in semesters.values() if key not in unrated])
-    return {"ratings": {term: known_rating(key) for term, key in semesters.items()}}
+        rate_semesters(unrated, [(key, known_rating(key)["difficulty"]) for key in semesters.values() if key not in unrated])
+    known = {term: known_rating(key) for term, key in semesters.items()}
+    return {
+        "ratings": {term: rating and rating["difficulty"] for term, rating in known.items()},
+        "reasons": {term: rating and rating["reason"] for term, rating in known.items()},
+    }
 
 
 def advisor_context(req: AdvisorRequest):

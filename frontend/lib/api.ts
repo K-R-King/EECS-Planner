@@ -159,10 +159,21 @@ export function reviewPlan(plan: Semester[], settings: PlannerSettings): Promise
   return request<PlanResult>("/review-plan", { plan, settings });
 }
 
-/** Gemini's difficulty out of 10 for each semester (by term), null where it couldn't rate one. */
-export async function rateSemesters(plan: Semester[], settings: PlannerSettings): Promise<Record<string, number | null>> {
-  const { ratings } = await request<{ ratings: Record<string, number | null> }>("/rate-semesters", { plan, settings });
-  return ratings;
+export interface Rating {
+  difficulty: number;  // out of 10
+  reason: string;      // what drives it, in a sentence
+}
+
+/** Gemini's rating for each semester (by term), null where it couldn't rate one. */
+export async function rateSemesters(plan: Semester[], settings: PlannerSettings): Promise<Record<string, Rating | null>> {
+  const { ratings, reasons } = await request<{ ratings: Record<string, number | null>; reasons?: Record<string, string | null> }>(
+    "/rate-semesters",
+    { plan, settings },
+  );
+  return Object.fromEntries(Object.entries(ratings).map(([term, difficulty]) => [
+    term,
+    difficulty === null ? null : { difficulty, reason: reasons?.[term] ?? "" },
+  ]));
 }
 
 /**

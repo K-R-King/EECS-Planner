@@ -317,13 +317,20 @@ def rated(*semesters):
 
 
 def ratings_reply(*difficulties):
-    return ai.RatingReply(ratings=[ai.SemesterRating(semester=i, difficulty=d) for i, d in enumerate(difficulties)])
+    return ai.RatingReply(ratings=[ai.SemesterRating(semester=i, difficulty=d, reason="CS 162 is heavy.") for i, d in enumerate(difficulties)])
 
 
 def test_semesters_are_rated_in_one_request(monkeypatch):
     fake_gemini(monkeypatch, ratings_reply(7, 4))  # a second request would run out of outcomes
 
     assert rated(["CS162", "CS170"], ["R1A"], []) == {"Year 1 Fall": 7, "Year 2 Fall": 4}
+
+
+def test_ratings_come_with_their_reasons(monkeypatch):
+    fake_gemini(monkeypatch, ratings_reply(7))
+    plan = [{"term": "Year 1 Fall", "courses": ["CS162"]}, {"term": "Year 1 Spring", "courses": []}]
+    reply = client.post("/rate-semesters", json={"plan": plan}).json()
+    assert reply == {"ratings": {"Year 1 Fall": 7}, "reasons": {"Year 1 Fall": "CS 162 is heavy."}}
 
 
 def test_a_rated_semester_keeps_its_rating_in_any_order(monkeypatch):
