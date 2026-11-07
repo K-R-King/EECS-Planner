@@ -28,7 +28,10 @@ const RATINGS_KEY = "eecs-planner:ratings:v2";
 /** Ratings this browser already has, so a refresh or return visit asks Gemini for nothing it's been told. */
 function loadRatings(): Record<string, Rating | null> {
   try {
-    return typeof window === "undefined" ? {} : JSON.parse(localStorage.getItem(RATINGS_KEY) ?? "{}") ?? {};
+    if (typeof window === "undefined") return {};
+    const saved: unknown = JSON.parse(localStorage.getItem(RATINGS_KEY) ?? "{}");
+    if (typeof saved !== "object" || saved === null || Array.isArray(saved)) return {};
+    return Object.fromEntries(Object.entries(saved).filter(([, rating]) => typeof rating?.difficulty === "number"));
   } catch {
     return {};
   }
@@ -65,7 +68,8 @@ export function usePlanner() {
   const [result, setResult] = useState<PlanResult | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [edited, setEdited] = useState(false);
-  const [undoStack, setUndoStack] = useState<PlanResult[]>([]);
+  // slot choices change a plan's units, so undoing has to restore them with it
+  const [undoStack, setUndoStack] = useState<{ result: PlanResult; picks: Settings["picks"] }[]>([]);
   const [catalog, setCatalog] = useState<CatalogCourse[]>([]);
   const [apExams, setApExams] = useState<ApExam[]>([]);
   const [focusTracks, setFocusTracks] = useState<FocusTracks>({ tracks: [], offerings_checked: null, catalog_year: "" });
@@ -84,6 +88,8 @@ export function usePlanner() {
   const [notice, setNotice] = useState<string | null>(null);
   // difficulty out of 10 for semesters rated so far (see ratingKey); null means it couldn't be rated
   const [ratings, setRatings] = useState<Record<string, Rating | null>>(loadRatings);
+  // semesters Gemini is rating right now (it can take 15 seconds, and edits shouldn't ask again)
+  const ratingsInFlight = useRef(new Set<string>());
 
   useEffect(() => {
     // reading these clears them, and this effect can run twice on load, so keep what the first run found
@@ -186,19 +192,27 @@ export function usePlanner() {
   useEffect(() => {
     if (!result) return;
     const { picks } = settings;
-    const unrated = result.plan.filter((s) => s.courses.length && !(ratingKey(s.courses, picks) in ratings));
+    const unrated = result.plan.filter((s) => {
+      const key = ratingKey(s.courses, picks);
+      return s.courses.length && !(key in ratings) && !ratingsInFlight.current.has(key);
+    });
     if (!unrated.length) return;
 
     const timer = setTimeout(() => {
+      const keys = unrated.map((s) => ratingKey(s.courses, picks));
+      keys.forEach((key) => ratingsInFlight.current.add(key));
       rateSemesters(result.plan, settings)
         .catch((err) => {
           console.error(err);
           return {} as Record<string, Rating | null>;
         })
-        .then((rated) => setRatings((known) => ({
-          ...known,
-          ...Object.fromEntries(unrated.map((s) => [ratingKey(s.courses, picks), rated[s.term] ?? null])),
-        })));
+        .then((rated) => {
+          keys.forEach((key) => ratingsInFlight.current.delete(key));
+          setRatings((known) => ({
+            ...known,
+            ...Object.fromEntries(unrated.map((s) => [ratingKey(s.courses, picks), rated[s.term] ?? null])),
+          }));
+        });
     }, RATING_DELAY);
     return () => clearTimeout(timer);
   }, [result, settings, ratings]);
@@ -212,7 +226,7 @@ export function usePlanner() {
 
   // keep the previous version so edits can be undone
   function commit(next: PlanResult) {
-    if (result) setUndoStack((stack) => [...stack.slice(-19), result]);
+    if (result) setUndoStack((stack) => [...stack.slice(-19), { result, picks: settings.picks }]);
     setResult(next);
     setEdited(true);
   }
@@ -222,7 +236,8 @@ export function usePlanner() {
     if (!previous) return;
     latestRequest.current++;  // ignore any review still in flight
     setUndoStack((stack) => stack.slice(0, -1));
-    setResult(previous);
+    setResult(previous.result);
+    setSettings((current) => ({ ...current, picks: previous.picks }));
   }
 
   /** Rebuild the plan from settings. Returns false if the student kept their edited plan instead. */
@@ -277,6 +292,9 @@ export function usePlanner() {
       if (requestId === latestRequest.current) setResult(checked);
     } catch (err) {
       console.error(err);
+      if (requestId === latestRequest.current) {
+        setNotice("Couldn't check that change against the requirements, so problems may not be flagged. Try another edit in a moment.");
+      }
     }
   }
 

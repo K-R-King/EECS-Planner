@@ -14,5 +14,10 @@
         "service": "eecs-planner-api"
       }
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "dependabot/**": false
+    }
+  }
 }

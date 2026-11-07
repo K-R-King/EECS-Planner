@@ -54,8 +54,8 @@ export function clearShareLink() {
 
 export function loadSaved(): SavedState | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null");
+    return typeof saved?.settings === "object" && saved.settings !== null ? saved : null;  // damaged data counts as nothing saved
   } catch {
     return null;
   }

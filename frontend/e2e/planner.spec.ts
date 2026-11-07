@@ -349,12 +349,65 @@ test("a failed rating is tried again after a refresh", async ({ page }) => {
   await expect(page.getByText("Difficulty 6/10")).toHaveCount(8);
 });
 
-test("a semester Gemini can't rate just leaves the rating out", async ({ page }) => {
+test("says when a rating is loading, and when it's unavailable", async ({ page }) => {
   await page.route("**/rate-semesters", (route) => route.fulfill({ status: 500 }));
   await generate(page);
-  await expect(page.getByText("Difficulty …/10").first()).toBeVisible();
+  await expect(page.getByText("Rating…").first()).toBeVisible();
+  await expect(page.getByText("Rating unavailable")).toHaveCount(8);
   await expect(page.getByText(/^Difficulty/)).toHaveCount(0);
 });
+
+test("edits during a slow rating don't ask Gemini again", async ({ page }) => {
+  const asked: string[][] = [];
+  await page.route("**/rate-semesters", async (route) => {
+    const terms: string[] = route.request().postDataJSON().plan.map((s: { term: string }) => s.term);
+    asked.push(terms);
+    await new Promise((done) => setTimeout(done, asked.length === 1 ? 3000 : 0));
+    return route.fulfill({ json: { ratings: Object.fromEntries(terms.map((t) => [t, 6])), reasons: {} } });
+  });
+  await generate(page);
+  await expect.poll(() => asked.length).toBe(1);
+
+  // the settings changing restarts nothing that's already been asked
+  await moveMenu(page, "CS188").selectOption(await otherTerm(page, "CS188"));
+  await moveMenu(page, "CS188").selectOption(await otherTerm(page, "CS188"));
+  await expect(page.getByText(/^Rating/)).toHaveCount(0, { timeout: 10000 });
+  expect(asked.length).toBeLessThanOrEqual(2);
+});
+
+test("undo also undoes a course choice", async ({ page }) => {
+  await generate(page);
+  const slot = course(page, "PHYS7A");
+  const choice = slot.locator('select[aria-label^="Choose"]');
+  await choice.selectOption("PHYSICS 5A");
+  await expect(slot).toContainText("3u");
+
+  await page.getByRole("button", { name: /Undo/ }).click();
+  await expect(slot).toContainText("4u");
+  await expect(choice).toHaveValue("");
+});
+
+test("says so when an edit can't be checked", async ({ page }) => {
+  await generate(page);
+  await page.route("**/review-plan", (route) => route.fulfill({ status: 500 }));
+  await moveMenu(page, "CS188").selectOption(await otherTerm(page, "CS188"));
+  await expect(page.getByRole("status").filter({ hasText: "Couldn't check that change" })).toBeVisible();
+});
+
+for (const [name, key] of [["saved plan", "eecs-planner:v3"], ["saved ratings", "eecs-planner:ratings:v2"]]) {
+  test(`damaged ${name} doesn't break the page`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await generate(page);
+    for (const value of ["5", "[]", "null", '"text"', '{"a":1}']) {
+      await page.evaluate(([k, v]) => localStorage.setItem(k, v), [key, value]);
+      await page.reload();
+      await page.getByRole("button", { name: /Generate my 4-year plan|Regenerate/ }).first().click();
+      await expect(page.getByText("Units toward graduation")).toBeVisible();
+    }
+    expect(errors).toEqual([]);
+  });
+}
 
 test("asks before a settings change throws away edits", async ({ page }) => {
   await generate(page);
