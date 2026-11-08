@@ -59,10 +59,34 @@ def units_of(code, picks=None):
     return option.get("units", COURSES[code]["units"]) if option else COURSES[code]["units"]
 
 
+ETHICS_COURSES = {o["label"] for o in COURSES["ETHICS"]["options"] if o.get("upper_hss")}
+UPPER_HSS_SLOTS = [code for code, info in COURSES.items() if info.get("upper_hss")]
+
+
 def waived_by(picks):
-    """Slots a choice makes unnecessary: an asterisked ethics course also covers an upper-division H/SS course."""
+    """
+    Slots a choice makes unnecessary, and why. An asterisked ethics course (ENGIN 125, ENGIN 185, PHILOS 121) meets
+    both the ethics requirement and an upper-division H/SS course, wherever it's chosen: in the Ethics slot it covers
+    HSS4, and in an upper-division H/SS slot it covers Ethics. One course can't do both jobs twice, so an asterisked
+    choice for Ethics wins.
+    """
+    picks = picks or {}
     ethics = chosen_option("ETHICS", picks)
-    return ["HSS4"] if ethics and ethics.get("upper_hss") else []
+    if ethics and ethics.get("upper_hss"):
+        return {"HSS4": f"your ethics course ({ethics['label']}) also counts as an upper-division H/SS course."}
+    for slot in UPPER_HSS_SLOTS:
+        if picks.get(slot) in ETHICS_COURSES:
+            return {"ETHICS": f"{picks[slot]}, your {slot} course, also meets the ethics requirement."}
+    return {}
+
+
+def chosen_twice(picks):
+    """The same course chosen for two slots, which only counts once. Categories like "Historical Studies course" can repeat."""
+    slots = {}
+    for slot, label in (picks or {}).items():
+        if not label.endswith(" course") and not label.endswith(" units") and not label.endswith(" unit"):
+            slots.setdefault(label, []).append(slot)
+    return {label: found for label, found in slots.items() if len(found) > 1}
 
 
 # ---------- HELPERS ----------
@@ -274,7 +298,8 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
     """Turn [(term, [codes])] into the API response, checking every course along the way."""
     plan = []
     issues = []
-    waived = set(waived_by(picks))
+    reasons = waived_by(picks)
+    waived = set(reasons)
     prior = set(credited) | set(completed)
     done = set(prior)   # finished before the current semester
     seen = set(prior)   # anywhere so far, to catch duplicates
@@ -350,10 +375,9 @@ def summarize(schedule, credited, ap_units, max_units, completed=(), picks=None)
             "Try a higher unit limit or a longer timeline."
         )
     for code in unneeded:
-        warnings.append(
-            f"You can drop {code}: your ethics course ({chosen_option('ETHICS', picks)['label']}) "
-            "also counts as an upper-division H/SS course."
-        )
+        warnings.append(f"You can drop {code}: {reasons[code]}")
+    for label, slots in chosen_twice(picks).items():
+        warnings.append(f"{label} is chosen for both {' and '.join(slots)}, but a course only counts once. Choose a different course for one of them.")
 
     return {
         "plan": plan,

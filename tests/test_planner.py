@@ -300,6 +300,57 @@ def test_asterisked_ethics_course_covers_an_upper_division_hss():
     assert any("You can drop HSS4" in w for w in warnings)
 
 
+def test_an_ethics_course_chosen_for_upper_division_hss_also_meets_ethics():
+    settings = {**SETTINGS, "picks": {"HSS3": "ENGIN 125"}}
+    result = build_degree_plan([], settings)
+    planned = {c for s in result["plan"] for c in codes(s)}
+    assert "ETHICS" not in planned
+    assert result["warnings"] == [] and result["issues"] == []
+
+    # with the Ethics slot already planned, it can go
+    plan = build_degree_plan([], SETTINGS)["plan"]
+    warnings = review_plan(plan, settings)["warnings"]
+    assert any(w.startswith("You can drop ETHICS: ENGIN 125, your HSS3 course, also meets the ethics requirement") for w in warnings)
+
+    # and removing it isn't "missing" anymore
+    without = [{"term": s["term"], "courses": [c for c in codes(s) if c != "ETHICS"]} for s in plan]
+    assert not any("missing" in w for w in review_plan(without, settings)["warnings"])
+
+
+@pytest.mark.parametrize("slot", ["HSS3", "HSS4"])
+@pytest.mark.parametrize("course", ["ENGIN 125", "ENGIN 185", "PHILOS 121"])
+def test_every_asterisked_course_meets_ethics_from_either_hss_slot(slot, course):
+    planned = {c for s in build_degree_plan([], {**SETTINGS, "picks": {slot: course}})["plan"] for c in codes(s)}
+    assert "ETHICS" not in planned
+
+
+def test_an_hss_course_that_isnt_an_ethics_course_leaves_ethics_in_place():
+    planned = {c for s in build_degree_plan([], {**SETTINGS, "picks": {"HSS3": "ENGIN 157AC"}})["plan"] for c in codes(s)}
+    assert "ETHICS" in planned
+
+
+def test_an_asterisked_ethics_choice_isnt_undone_by_another_in_hss():
+    # ENGIN 125 for Ethics covers HSS4, so PHILOS 121 in HSS3 mustn't also remove Ethics: that would leave both unmet
+    settings = {**SETTINGS, "picks": {"ETHICS": "ENGIN 125", "HSS3": "PHILOS 121"}}
+    planned = {c for s in build_degree_plan([], settings)["plan"] for c in codes(s)}
+    assert "ETHICS" in planned and "HSS3" in planned and "HSS4" not in planned
+
+
+def test_the_same_course_chosen_twice_is_flagged():
+    plan = build_degree_plan([], SETTINGS)["plan"]
+    warnings = review_plan(plan, {**SETTINGS, "picks": {"ETHICS": "ENGIN 125", "HSS3": "ENGIN 125"}})["warnings"]
+    assert any("ENGIN 125 is chosen for both" in w for w in warnings)
+    # two courses from the same breadth category are fine
+    categories = {"HSS1": "Historical Studies course", "HSS2": "Historical Studies course"}
+    assert not any("chosen for both" in w for w in review_plan(plan, {**SETTINGS, "picks": categories})["warnings"])
+
+
+def test_ethics_courses_count_three_units_in_an_hss_slot():
+    result = build_degree_plan([], {**SETTINGS, "picks": {"HSS3": "ENGIN 125"}})
+    hss3 = next(c for s in result["plan"] for c in s["courses"] if c["code"] == "HSS3")
+    assert hss3["units"] == 3
+
+
 def test_final_semester_may_be_light():
     plan, _, _ = edited(build_degree_plan([], SETTINGS), [
         {"action": "remove", "course": c} for c in codes(build_degree_plan([], SETTINGS)["plan"][-1])[1:]
