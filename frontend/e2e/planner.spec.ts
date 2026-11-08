@@ -261,6 +261,18 @@ test("ENGIN 157AC can fill an upper-division H/SS slot", async ({ page }) => {
   await expect(course(page, "HSS3").getByRole("combobox", { name: /Choose a course for/ })).toHaveValue("ENGIN 157AC");
 });
 
+test("ENGIN 125 chosen for upper-division H/SS also meets the ethics requirement", async ({ page }) => {
+  await generate(page);
+  await course(page, "HSS3").getByRole("combobox", { name: /Choose a course for/ }).selectOption("ENGIN 125");
+  await expect(page.getByText(/You can drop ETHICS: ENGIN 125, your HSS3 course, also meets the ethics requirement/)).toBeVisible();
+  await expect(course(page, "HSS3")).toContainText("3u");
+
+  // dropping the Ethics slot then leaves no ethics warning
+  await course(page, "ETHICS").getByRole("button", { name: /Remove/ }).click();
+  await expect(page.getByText(/You can drop ETHICS/)).toHaveCount(0);
+  await expect(page.getByText(/missing from your plan/)).toHaveCount(0);
+});
+
 test("choosing a course for a slot updates its units", async ({ page }) => {
   await generate(page);
   await course(page, "PHYS7A").locator('select[aria-label^="Choose"]').selectOption("PHYSICS 5A");
